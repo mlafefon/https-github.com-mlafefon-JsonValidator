@@ -95,24 +95,28 @@
                         <option value="">בחר סכמה לעריכה...</option>
                     </select>
                     <button id="create-new-schema-btn" class="action-button" title="נקה את הטופס כדי ליצור סכמה חדשה מאפס.">צור חדש</button>
+                    <button id="upload-schema-btn" class="action-button upload-button" title="טען סכמת JSON מהמחשב">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.25rem; height: 1.25rem;">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"></path>
+                        </svg>
+                        <span>העלה סכמה/גייסון</span>
+                    </button>
                 </div>
                 <div id="schema-editor-form-container" hidden>
                     <div class="schema-form-grid">
                         <div class="form-group">
                             <label for="schema-title-input">כותרת לתצוגה (Display Title)</label>
                             <input type="text" id="schema-title-input" class="schema-form-input" placeholder="e.g., My New Schema" title="יש להשתמש באותיות באנגלית, מספרים ורווחים בלבד." dir="ltr" pattern="[a-zA-Z0-9\s]*">
-                            <small>השם שיוצג ברשימת הבחירה וייצור את מזהה הסכמה. (אנגלית בלבד)</small>
                         </div>
                         <div class="form-group">
                             <label for="schema-description-input">תיאור</label>
-                            <input type="text" id="schema-description-input" class="schema-form-input" placeholder="e.g., A schema for user profiles" title="תיאור קצר של מטרת הסכמה.">
-                            <small>תיאור קצר של מטרת הסכמה.</small>
+                            <input type="text" id="schema-description-input" class="schema-form-input" placeholder="לדוגמה: סכמה לבדיקת לוגים אפליקטיביים" title="תיאור קצר של מטרת הסכמה.">
                         </div>
                     </div>
 
                     <div class="schema-editor-main-area">
-                         <div id="schema-raw-editor-container" class="form-group">
-                            <label for="schema-content-textarea">תוכן הסכמה (JSON Schema)</label>
+                         <div id="schema-raw-editor-container" class="visual-builder-column">
+                            <h3 class="builder-title">תוכן הסכמה (JSON Schema)</h3>
                             <textarea id="schema-content-textarea" class="json-textarea schema-editor-textarea" spellcheck="false" dir="ltr" title="קוד המקור של הסכמה בפורמט JSON Schema."></textarea>
                         </div>
                         <div class="visual-builder-column">
@@ -151,6 +155,7 @@
                 </button>
                 <button id="save-schema-btn" class="action-button save-button" title="שמור את השינויים בסכמה הנוכחית.">שמור שינויים</button>
             </footer>
+             <input type="file" id="schema-file-input" accept=".json" hidden />
         </div>
     </div>
     

@@ -52,6 +52,8 @@ const schemaEditorFeedbackIcon = document.getElementById('schema-editor-feedback
 const schemaEditorFeedbackMessage = document.getElementById('schema-editor-feedback-message');
 const downloadSchemaBtn = document.getElementById('download-schema-btn');
 const saveSchemaBtn = document.getElementById('save-schema-btn');
+const uploadSchemaBtn = document.getElementById('upload-schema-btn');
+const schemaFileInput = document.getElementById('schema-file-input');
 
 // --- SCHEMA BUILDER UI ELEMENTS ---
 const visualBuilderContainer = document.getElementById('schema-visual-builder-container');
@@ -652,6 +654,35 @@ function validateAndParseJson() {
         errorDisplay.hidden = false;
     }
     buildTreeView(null);
+}
+
+/**
+ * Sanitizes an input field in real-time to prevent specific characters from being entered.
+ * It maintains the cursor position correctly after sanitization.
+ * @param {Event} event The input event object.
+ * @param {RegExp} invalidCharsRegex A regex that matches the characters to be removed.
+ */
+function sanitizeInput(event, invalidCharsRegex) {
+    const input = event.target;
+    // Ensure we are working with an input-like element that has a value and selection properties.
+    if (!input || typeof input.value === 'undefined' || typeof input.selectionStart !== 'number') return;
+
+    const originalValue = input.value;
+    const sanitizedValue = originalValue.replace(invalidCharsRegex, '');
+
+    if (originalValue !== sanitizedValue) {
+        const selectionStart = input.selectionStart;
+        
+        // Count how many invalid characters were removed before the cursor's original position.
+        const originalPrefix = originalValue.substring(0, selectionStart);
+        const removedInPrefix = (originalPrefix.match(invalidCharsRegex) || []).length;
+        
+        input.value = sanitizedValue;
+
+        // Set the new cursor position.
+        const newCursorPos = selectionStart - removedInPrefix;
+        input.setSelectionRange(newCursorPos, newCursorPos);
+    }
 }
 
 // --- SCHEMA MANAGEMENT / BUILDER FUNCTIONS ---
@@ -1427,6 +1458,93 @@ schemaEditorModal.addEventListener('click', (e) => {
     }
 });
 
+uploadSchemaBtn.addEventListener('click', () => {
+    schemaFileInput.click();
+});
+
+schemaFileInput.addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file) {
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const text = e.target.result;
+        try {
+            const loadedJson = JSON.parse(text);
+
+            clearSchemaEditorForm();
+            schemaEditorFormContainer.hidden = false;
+            schemaEditorFooter.hidden = false;
+
+            const isSchema = loadedJson && typeof loadedJson === 'object' && !Array.isArray(loadedJson) && (loadedJson.hasOwnProperty('$schema') || loadedJson.hasOwnProperty('properties'));
+            let schemaToLoad;
+            let titleToSet = file.name.replace(/\.json$/i, '');
+
+            if (isSchema) {
+                schemaToLoad = loadedJson;
+                if (schemaToLoad.title) {
+                    titleToSet = schemaToLoad.title;
+                } else {
+                    schemaToLoad.title = titleToSet;
+                }
+            } else if (loadedJson && typeof loadedJson === 'object' && !Array.isArray(loadedJson)) {
+                displaySchemaEditorFeedback('success', 'קובץ JSON רגיל זוהה. מתבצעת המרה אוטומטית לסכמה.');
+
+                const newSchema = {
+                    "$schema": "http://json-schema.org/draft-07/schema#",
+                    "title": titleToSet,
+                    "description": `סכמה שנוצרה אוטומטית מהקובץ ${file.name}`,
+                    "type": "object",
+                    "properties": {}
+                };
+                
+                const requiredKeys = Object.keys(loadedJson);
+                if (requiredKeys.length > 0) {
+                    newSchema.required = requiredKeys;
+                }
+
+                for (const key of requiredKeys) {
+                    const value = loadedJson[key];
+                    let type;
+                    if (value === null) {
+                        type = 'null';
+                    } else if (Array.isArray(value)) {
+                        type = 'array';
+                    } else if (typeof value === 'number') {
+                        type = Number.isInteger(value) ? 'integer' : 'number';
+                    } else {
+                        type = typeof value; // 'string', 'boolean', 'object'
+                    }
+                    newSchema.properties[key] = { type };
+                }
+
+                schemaToLoad = newSchema;
+            } else {
+                throw new Error("לא ניתן להמיר את קובץ ה-JSON. יש להעלות אובייקט JSON (לא מערך או ערך פרימיטיבי).");
+            }
+
+            schemaTitleInput.value = titleToSet;
+            schemaContentTextarea.value = JSON.stringify(schemaToLoad, null, 2);
+            populateUIFromSchema(schemaToLoad);
+            
+            isEditingExistingSchema = false;
+            currentEditingSchemaKey = null;
+
+        } catch (err) {
+            displaySchemaEditorFeedback('error', `קובץ לא תקין. ${err.message}`);
+        }
+    };
+    reader.onerror = () => {
+        displaySchemaEditorFeedback('error', `שגיאה בקריאת הקובץ: ${reader.error.message}`);
+    };
+    reader.readAsText(file);
+
+    event.target.value = '';
+});
+
+
 createNewSchemaBtn.addEventListener('click', () => {
     clearSchemaEditorForm();
     schemaEditorFormContainer.hidden = false;
@@ -1438,10 +1556,15 @@ saveSchemaBtn.addEventListener('click', saveSchema);
 downloadSchemaBtn.addEventListener('click', downloadSchemaFile);
 
 
-addSchemaFieldBtn.addEventListener('click', () => addSchemaFieldRow({}, true));
+addSchemaFieldBtn.addEventListener('click', () => addSchemaFieldRow({ required: true }, true));
 
 // Use event delegation for dynamic field rows
 fieldsContainer.addEventListener('input', (e) => {
+    // Sanitize Field Name and Regex Pattern inputs to allow only ASCII characters
+    if (e.target.classList.contains('field-name') || (e.target.matches('.validation-input') && e.target.dataset.rule === 'pattern')) {
+        sanitizeInput(e, /[^\x00-\x7F]/g); // Non-ASCII characters regex
+    }
+
     clearTimeout(schemaBuilderTimeout);
     schemaBuilderTimeout = setTimeout(() => {
         buildSchemaFromUI();
@@ -1491,7 +1614,10 @@ fieldsContainer.addEventListener('focusout', (e) => {
     }
 });
 
-schemaTitleInput.addEventListener('input', () => {
+schemaTitleInput.addEventListener('input', (e) => {
+    // Sanitize to allow only English letters, numbers, and spaces
+    sanitizeInput(e, /[^a-zA-Z0-9\s]/g);
+
     clearTimeout(schemaBuilderTimeout);
     schemaBuilderTimeout = setTimeout(buildSchemaFromUI, 300);
 });
