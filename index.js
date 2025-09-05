@@ -683,7 +683,7 @@ function populateSchemaSelects() {
             select.options[0].textContent = 'אין סכמות';
             select.disabled = true;
         } else {
-            select.options[0].textContent = select.id === 'schema-edit-select' ? 'בחר סכמה לעריכה...' : 'בחר סוג';
+            select.options[0].textContent = select.id === 'schema-edit-select' ? 'בחר סכמה לעריכה...' : 'בחר סכמה';
             select.disabled = false;
 
             keys.sort().forEach(key => {
@@ -1037,11 +1037,21 @@ function downloadSchemaFile() {
 }
 
 function openSchemaEditor() {
+    const selectedSchemaKey = schemaValidatorSelect.value;
+
     schemaEditorModal.hidden = false;
     populateSchemaSelects();
-    clearSchemaEditorForm();
-    schemaEditorFormContainer.hidden = true;
-    schemaEditorFooter.hidden = true;
+    
+    // Check if a valid schema was selected in the main view
+    if (selectedSchemaKey && schemaData && schemaData[selectedSchemaKey]) {
+        schemaEditSelect.value = selectedSchemaKey;
+        loadSchemaForEditing(); // This function will load the data and show the form
+    } else {
+        // If no schema was selected, just open the editor in its default state
+        clearSchemaEditorForm();
+        schemaEditorFormContainer.hidden = true;
+        schemaEditorFooter.hidden = true;
+    }
 }
 
 function closeSchemaEditor() {
