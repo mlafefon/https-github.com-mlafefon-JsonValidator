@@ -96,10 +96,17 @@ body {
 
 .editor-toolbar {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
     gap: 0.5rem;
     padding: 0.5rem;
     flex-shrink: 0;
+}
+
+.toolbar-main-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
 }
 
 .action-button {
