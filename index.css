@@ -310,6 +310,13 @@ body {
     background-color: var(--border-color);
 }
 
+.create-new-button {
+    background-color: var(--bg-color-medium);
+}
+.create-new-button:hover {
+    background-color: var(--border-color);
+}
+
 .save-button {
     background-color: var(--color-green);
 }
