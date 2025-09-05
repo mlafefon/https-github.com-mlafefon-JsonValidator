@@ -50,7 +50,7 @@ const schemaContentTextarea = document.getElementById('schema-content-textarea')
 const schemaEditorFeedback = document.getElementById('schema-editor-feedback');
 const schemaEditorFeedbackIcon = document.getElementById('schema-editor-feedback-icon');
 const schemaEditorFeedbackMessage = document.getElementById('schema-editor-feedback-message');
-const deleteSchemaBtn = document.getElementById('delete-schema-btn');
+const downloadSchemaBtn = document.getElementById('download-schema-btn');
 const saveSchemaBtn = document.getElementById('save-schema-btn');
 
 // --- SCHEMA BUILDER UI ELEMENTS ---
@@ -917,7 +917,6 @@ function clearSchemaEditorForm() {
     schemaTitleInput.value = '';
     schemaDescriptionInput.value = '';
     schemaContentTextarea.value = '';
-    deleteSchemaBtn.disabled = true;
     isEditingExistingSchema = false;
     currentEditingSchemaKey = null;
     schemaEditorFeedback.hidden = true;
@@ -945,7 +944,6 @@ function loadSchemaForEditing() {
     if (schema) {
         isEditingExistingSchema = true;
         schemaContentTextarea.value = JSON.stringify(schema, null, 2);
-        deleteSchemaBtn.disabled = false;
         populateUIFromSchema(schema);
     }
 }
@@ -1007,25 +1005,35 @@ function saveSchema() {
     }
 }
 
-function deleteSchema() {
-    const key = currentEditingSchemaKey;
-    if (!key || !isEditingExistingSchema) return;
-
-    if (window.confirm(`האם אתה בטוח שברצונך למחוק את הסכמה '${schemaData[key].title || key}'?`)) {
-        delete schemaData[key];
-        try {
-            localStorage.setItem(LS_SCHEMA_KEY, JSON.stringify(schemaData));
-            populateSchemaSelects();
-            clearSchemaEditorForm();
-            schemaEditorFormContainer.hidden = true;
-            schemaEditorFooter.hidden = true;
-            displaySchemaEditorFeedback('success', 'הסכמה נמחקה בהצלחה!');
-            validateAndParseJson();
-        } catch (e) {
-             console.error('Failed to save schemas to localStorage:', e);
-             displaySchemaEditorFeedback('error', 'שגיאה בשמירה ל-LocalStorage.');
-        }
+function downloadSchemaFile() {
+    const content = schemaContentTextarea.value.trim();
+    if (!content) {
+        displaySchemaEditorFeedback('error', 'אין תוכן לשמור.');
+        return;
     }
+
+    try {
+        // Validate it's JSON before saving
+        JSON.parse(content);
+    } catch(e) {
+        displaySchemaEditorFeedback('error', 'לא ניתן לשמור קובץ, תוכן הסכמה אינו JSON תקין.');
+        return;
+    }
+
+    const title = schemaTitleInput.value.trim();
+    const filename = title
+        ? title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-') + '.json'
+        : 'schema.json';
+
+    const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 function openSchemaEditor() {
@@ -1417,7 +1425,8 @@ createNewSchemaBtn.addEventListener('click', () => {
 });
 schemaEditSelect.addEventListener('change', loadSchemaForEditing);
 saveSchemaBtn.addEventListener('click', saveSchema);
-deleteSchemaBtn.addEventListener('click', deleteSchema);
+downloadSchemaBtn.addEventListener('click', downloadSchemaFile);
+
 
 addSchemaFieldBtn.addEventListener('click', () => addSchemaFieldRow({}, true));
 
