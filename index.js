@@ -383,6 +383,14 @@ function getLineAndColumnFromPosition(text, position) {
 function validateJsonAgainstSchema(jsonData, schema) {
     const errors = [];
 
+    function pushError(baseMessage, currentSchema) {
+        let finalMessage = baseMessage;
+        if (currentSchema && currentSchema.description) {
+            finalMessage += ` (תיאור: ${currentSchema.description})`;
+        }
+        errors.push(finalMessage);
+    }
+
     function validate(instance, schema, path) {
         if (!schema) return;
 
@@ -401,7 +409,7 @@ function validateJsonAgainstSchema(jsonData, schema) {
             }
             
             if (!typeIsValid) {
-                errors.push(`שגיאת טיפוס בנתיב '${path}': צפוי '${schemaType}', התקבל '${instanceType}'.`);
+                pushError(`שגיאת טיפוס בנתיב '${path}': צפוי '${schemaType}', התקבל '${instanceType}'.`, schema);
                 return; // Stop validating this branch if type is wrong
             }
         }
@@ -409,16 +417,16 @@ function validateJsonAgainstSchema(jsonData, schema) {
         // STRING VALIDATIONS
         if (instanceType === 'string') {
             if (schema.minLength !== undefined && instance.length < schema.minLength) {
-                errors.push(`אורך קצר מדי בנתיב '${path}': האורך הוא ${instance.length}, אך המינימום הנדרש הוא ${schema.minLength}.`);
+                pushError(`אורך קצר מדי בנתיב '${path}': האורך הוא ${instance.length}, אך המינימום הנדרש הוא ${schema.minLength}.`, schema);
             }
             if (schema.maxLength !== undefined && instance.length > schema.maxLength) {
-                errors.push(`אורך ארוך מדי בנתיב '${path}': האורך הוא ${instance.length}, אך המקסימום המותר הוא ${schema.maxLength}.`);
+                pushError(`אורך ארוך מדי בנתיב '${path}': האורך הוא ${instance.length}, אך המקסימום המותר הוא ${schema.maxLength}.`, schema);
             }
             if (schema.pattern) {
                 try {
                     const regex = new RegExp(schema.pattern);
                     if (!regex.test(instance)) {
-                        errors.push(`ערך לא תואם לתבנית בנתיב '${path}': הערך '${instance}' אינו תואם לתבנית '${schema.pattern}'.`);
+                        pushError(`ערך לא תואם לתבנית בנתיב '${path}': הערך '${instance}' אינו תואם לתבנית '${schema.pattern}'.`, schema);
                     }
                 } catch (e) {
                     console.error(`Invalid regex pattern in schema at path '${path}': ${schema.pattern}`);
@@ -429,16 +437,16 @@ function validateJsonAgainstSchema(jsonData, schema) {
         // NUMBER VALIDATIONS
         if (typeof instance === 'number') {
             if (schema.minimum !== undefined && instance < schema.minimum) {
-                errors.push(`ערך נמוך מדי בנתיב '${path}': הערך הוא ${instance}, אך המינימום המותר הוא ${schema.minimum}.`);
+                pushError(`ערך נמוך מדי בנתיב '${path}': הערך הוא ${instance}, אך המינימום המותר הוא ${schema.minimum}.`, schema);
             }
             if (schema.maximum !== undefined && instance > schema.maximum) {
-                errors.push(`ערך גבוה מדי בנתיב '${path}': הערך הוא ${instance}, אך המקסימום המותר הוא ${schema.maximum}.`);
+                pushError(`ערך גבוה מדי בנתיב '${path}': הערך הוא ${instance}, אך המקסימום המותר הוא ${schema.maximum}.`, schema);
             }
         }
 
         if (schema.enum) {
             if (Array.isArray(schema.enum) && !schema.enum.includes(instance)) {
-                errors.push(`ערך לא חוקי בנתיב '${path}': הערך '${instance}' אינו אחד מהערכים המותרים (${schema.enum.join(', ')}).`);
+                pushError(`ערך לא חוקי בנתיב '${path}': הערך '${instance}' אינו אחד מהערכים המותרים (${schema.enum.join(', ')}).`, schema);
             }
         }
 
@@ -446,7 +454,8 @@ function validateJsonAgainstSchema(jsonData, schema) {
             if (schema.required) {
                 for (const key of schema.required) {
                     if (instance[key] === undefined) {
-                        errors.push(`מאפיין חובה חסר בנתיב '${path}': '${key}'.`);
+                        const propertySchema = schema.properties ? schema.properties[key] : undefined;
+                        pushError(`מאפיין חובה חסר בנתיב '${path}': '${key}'.`, propertySchema);
                     }
                 }
             }
@@ -907,6 +916,7 @@ function clearSchemaEditorForm() {
     schemaEditorFeedback.hidden = true;
     schemaComplexityWarning.hidden = true;
     fieldsContainer.innerHTML = '';
+    clearSchemaHighlight();
 }
 
 function loadSchemaForEditing() {
@@ -1021,6 +1031,110 @@ function openSchemaEditor() {
 
 function closeSchemaEditor() {
     schemaEditorModal.hidden = true;
+    clearSchemaHighlight();
+}
+
+function clearSchemaHighlight() {
+    const textarea = schemaContentTextarea;
+    // Collapse selection to its start to remove highlight without moving cursor
+    if (textarea.selectionEnd > textarea.selectionStart) {
+        textarea.setSelectionRange(textarea.selectionStart, textarea.selectionStart);
+    }
+}
+
+function highlightSchemaProperty(focusedElement) {
+    const textarea = schemaContentTextarea;
+
+    if (!focusedElement || !textarea.value.trim()) {
+        return;
+    }
+
+    const row = focusedElement.closest('.schema-field-row');
+    if (!row) return;
+
+    // Use a microtask to ensure any pending UI/model updates (like from an input event) have completed
+    setTimeout(() => {
+        const text = textarea.value;
+        const fieldName = row.querySelector('.field-name').value.trim();
+        if (!fieldName || !text) return;
+
+        let startIndex = -1;
+        let endIndex = -1;
+        
+        let keyToFind = '';
+        let isRequiredSearch = false;
+
+        if (focusedElement.classList.contains('field-name')) {
+            keyToFind = `"${fieldName}"`;
+        } else if (focusedElement.classList.contains('field-type')) {
+            keyToFind = `"type"`;
+        } else if (focusedElement.classList.contains('field-description')) {
+            keyToFind = `"description"`;
+        } else if (focusedElement.dataset.rule) {
+            keyToFind = `"${focusedElement.dataset.rule}"`;
+        } else if (focusedElement.classList.contains('field-required')) {
+            isRequiredSearch = true;
+        }
+
+        if (!keyToFind && !isRequiredSearch) return;
+
+        if (isRequiredSearch) {
+            const requiredRegex = /"required"\s*:\s*\[([^\]]*)\]/;
+            const requiredMatch = text.match(requiredRegex);
+            if (requiredMatch) {
+                const requiredArrayContent = requiredMatch[1];
+                const requiredArrayOffset = requiredMatch.index + requiredMatch[0].indexOf('[') + 1;
+                const nameInArrayRegex = new RegExp(`"${fieldName}"`);
+                const nameMatch = requiredArrayContent.match(nameInArrayRegex);
+                if (nameMatch) {
+                    startIndex = requiredArrayOffset + nameMatch.index;
+                    endIndex = startIndex + nameMatch[0].length;
+                }
+            }
+        } else {
+            const propRegex = new RegExp(`"${fieldName}"\\s*:\\s*{`);
+            const propMatch = text.match(propRegex);
+            const propStartIndex = propMatch ? propMatch.index : -1;
+            
+            if (propStartIndex !== -1) {
+                if (focusedElement.classList.contains('field-name')) {
+                    startIndex = propStartIndex;
+                    endIndex = propStartIndex + keyToFind.length;
+                } else {
+                    let openBraces = 1;
+                    let searchAreaEnd = text.length;
+                    for (let i = propStartIndex + propMatch[0].length; i < text.length; i++) {
+                        if (text[i] === '{') openBraces++;
+                        if (text[i] === '}') openBraces--;
+                        if (openBraces === 0) {
+                            searchAreaEnd = i;
+                            break;
+                        }
+                    }
+                    const keyIndex = text.substring(propStartIndex, searchAreaEnd).indexOf(keyToFind);
+                    if (keyIndex !== -1) {
+                        startIndex = propStartIndex + keyIndex;
+                        endIndex = startIndex + keyToFind.length;
+                    }
+                }
+            }
+        }
+        
+        if (startIndex !== -1 && endIndex !== -1) {
+            textarea.setSelectionRange(startIndex, endIndex);
+
+            const textToSelection = text.substring(0, startIndex);
+            const lineNum = textToSelection.split('\n').length;
+            const computedStyle = window.getComputedStyle(textarea);
+            const realLineHeight = parseFloat(computedStyle.lineHeight) || 24;
+            const targetScrollTop = (lineNum - 1) * realLineHeight;
+
+            if (textarea.scrollTop > targetScrollTop || (textarea.scrollTop + textarea.clientHeight) < (targetScrollTop + realLineHeight)) {
+                 textarea.scrollTop = Math.max(0, targetScrollTop - textarea.clientHeight / 3);
+            }
+        }
+
+    }, 0);
 }
 
 
@@ -1303,7 +1417,13 @@ addSchemaFieldBtn.addEventListener('click', () => addSchemaFieldRow());
 // Use event delegation for dynamic field rows
 fieldsContainer.addEventListener('input', (e) => {
     clearTimeout(schemaBuilderTimeout);
-    schemaBuilderTimeout = setTimeout(buildSchemaFromUI, 300);
+    schemaBuilderTimeout = setTimeout(() => {
+        buildSchemaFromUI();
+        // After UI builds schema, re-highlight the current element as text has changed
+        if (document.activeElement && visualBuilderContainer.contains(document.activeElement)) {
+            highlightSchemaProperty(document.activeElement);
+        }
+    }, 300);
 });
 
 fieldsContainer.addEventListener('change', (e) => {
@@ -1326,6 +1446,25 @@ fieldsContainer.addEventListener('click', (e) => {
     }
 });
 
+fieldsContainer.addEventListener('focusin', (e) => {
+    const targetRow = e.target.closest('.schema-field-row');
+    if (!targetRow) return;
+
+    const currentFocusedRow = fieldsContainer.querySelector('.field-row-focused');
+    if (currentFocusedRow && currentFocusedRow !== targetRow) {
+        currentFocusedRow.classList.remove('field-row-focused');
+    }
+    targetRow.classList.add('field-row-focused');
+});
+
+fieldsContainer.addEventListener('focusout', (e) => {
+    const targetRow = e.target.closest('.schema-field-row');
+    // Remove highlight if focus moves outside of the row that is losing focus
+    if (targetRow && !targetRow.contains(e.relatedTarget)) {
+        targetRow.classList.remove('field-row-focused');
+    }
+});
+
 schemaTitleInput.addEventListener('input', () => {
     clearTimeout(schemaBuilderTimeout);
     schemaBuilderTimeout = setTimeout(buildSchemaFromUI, 300);
@@ -1343,6 +1482,23 @@ schemaContentTextarea.addEventListener('input', updateVisualBuilderFromRaw);
 updateLineNumbers();
 validateAndParseJson();
 initializeSchemaValidator();
+
+visualBuilderContainer.addEventListener('focusin', (e) => {
+    if (e.target.matches('input, select')) {
+        highlightSchemaProperty(e.target);
+    }
+});
+
+visualBuilderContainer.addEventListener('focusout', (e) => {
+    // If the new focused element is NOT inside the visual builder or the raw editor, clear.
+    if (!visualBuilderContainer.contains(e.relatedTarget) && e.relatedTarget !== schemaContentTextarea) {
+        clearSchemaHighlight();
+    }
+});
+
+schemaContentTextarea.addEventListener('focus', () => {
+    clearSchemaHighlight();
+});
 
 const resizeObserver = new ResizeObserver(() => {
     const scrollbarHeight = jsonInput.offsetHeight - jsonInput.clientHeight;

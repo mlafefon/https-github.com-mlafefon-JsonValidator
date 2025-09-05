@@ -98,8 +98,8 @@
                     <div class="schema-form-grid">
                         <div class="form-group">
                             <label for="schema-title-input">כותרת לתצוגה (Display Title)</label>
-                            <input type="text" id="schema-title-input" class="schema-form-input" placeholder="e.g., My New Schema" title="השם הידידותי של הסכמה שיוצג ברשימות הבחירה.">
-                            <small>השם שיוצג ברשימת הבחירה וייצור את מזהה הסכמה.</small>
+                            <input type="text" id="schema-title-input" class="schema-form-input" placeholder="e.g., My New Schema" title="יש להשתמש באותיות באנגלית, מספרים ורווחים בלבד." dir="ltr" pattern="[a-zA-Z0-9\s]*">
+                            <small>השם שיוצג ברשימת הבחירה וייצור את מזהה הסכמה. (אנגלית בלבד)</small>
                         </div>
                         <div class="form-group">
                             <label for="schema-description-input">תיאור</label>
@@ -113,9 +113,12 @@
                             <label for="schema-content-textarea">תוכן הסכמה (JSON Schema)</label>
                             <textarea id="schema-content-textarea" class="json-textarea schema-editor-textarea" spellcheck="false" dir="ltr" title="קוד המקור של הסכמה בפורמט JSON Schema."></textarea>
                         </div>
-                        <div id="schema-visual-builder-container">
-                            <div id="schema-fields-container">
-                                <!-- Dynamic field rows will be injected here -->
+                        <div class="visual-builder-column">
+                            <h3 class="builder-title">השדות</h3>
+                            <div id="schema-visual-builder-container">
+                                <div id="schema-fields-container">
+                                    <!-- Dynamic field rows will be injected here -->
+                                </div>
                             </div>
                             <button id="add-schema-field-btn" class="action-button add-field-button">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1rem; height: 1rem;">
@@ -147,14 +150,7 @@
     <template id="schema-field-template">
         <div class="schema-field-row" data-field-id="">
             <div class="field-main">
-                <button class="delete-field-btn" aria-label="Delete field" title="מחק שדה">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.125rem; height: 1.125rem;"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.033-2.134H8.033C6.91 2.75 6 3.664 6 4.834v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
-                </button>
-                <label class="field-required-label" title="האם השדה הוא שדה חובה?">
-                    <input type="checkbox" class="field-required">
-                    נדרש
-                </label>
-                <input type="text" class="field-input field-description" placeholder="תיאור" aria-label="Field Description" title="תיאור קצר של השדה. תיאור זה ישמש לתיעוד הסכמה.">
+                <input type="text" class="field-input field-name" placeholder="שם השדה" aria-label="Field Name" dir="ltr" title="שם השדה (key) ב-JSON. לדוגמה: 'firstName'">
                 <select class="field-select field-type" aria-label="Field Type" title="סוג הנתונים של השדה. לדוגמה: string, number, boolean">
                     <option value="string">String</option>
                     <option value="number">Number</option>
@@ -163,19 +159,26 @@
                     <option value="array">Array</option>
                     <option value="object">Object</option>
                 </select>
-                <input type="text" class="field-input field-name" placeholder="שם השדה" aria-label="Field Name" dir="ltr" title="שם השדה (key) ב-JSON. לדוגמה: 'firstName'">
+                <input type="text" class="field-input field-description" placeholder="תיאור" aria-label="Field Description" title="תיאור קצר של השדה. תיאור זה ישמש לתיעוד הסכמה.">
+                <label class="field-required-label" title="האם השדה הוא שדה חובה?">
+                    <input type="checkbox" class="field-required">
+                    נדרש
+                </label>
+                <button class="delete-field-btn" aria-label="Delete field" title="מחק שדה">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.125rem; height: 1.125rem;"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.033-2.134H8.033C6.91 2.75 6 3.664 6 4.834v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                </button>
             </div>
             <div class="field-validations">
                 <div class="validation-group" data-type="string">
-                    <input type="text" class="field-input validation-input" data-rule="enum" placeholder="ערכים מותרים (מופרד בפסיק)" title="רשימה של ערכים אפשריים (מופרדים בפסיק) שהשדה יכול לקבל. לדוגמה: cat,dog,fish">
-                    <input type="text" class="field-input validation-input" data-rule="pattern" placeholder="תבנית (Regex)" title="ביטוי רגולרי (Regex) שהערך חייב להתאים לו. לדוגמה: '^\\d{3}$'" dir="ltr">
-                    <input type="number" min="0" class="field-input validation-input" data-rule="maxLength" placeholder="אורך מקסימלי" title="האורך המקסימלי המותר עבור שדה מסוג string.">
                     <input type="number" min="0" class="field-input validation-input" data-rule="minLength" placeholder="אורך מינימלי" title="האורך המינימלי המותר עבור שדה מסוג string.">
+                    <input type="number" min="0" class="field-input validation-input" data-rule="maxLength" placeholder="אורך מקסימלי" title="האורך המקסימלי המותר עבור שדה מסוג string.">
+                    <input type="text" class="field-input validation-input" data-rule="pattern" placeholder="תבנית (Regex)" title="ביטוי רגולרי (Regex) שהערך חייב להתאים לו. לדוגמה: '^\\d{3}$'" dir="ltr">
+                    <input type="text" class="field-input validation-input" data-rule="enum" placeholder="ערכים מותרים (מופרד בפסיק)" title="רשימה של ערכים אפשריים (מופרדים בפסיק) שהשדה יכול לקבל. לדוגמה: cat,dog,fish">
                 </div>
                 <div class="validation-group" data-type="number integer">
-                    <input type="text" class="field-input validation-input" data-rule="enum" placeholder="ערכים מותרים (מופרד בפסיק)" title="רשימה של מספרים אפשריים (מופרדים בפסיק) שהשדה יכול לקבל. לדוגמה: 1,2,3">
-                    <input type="number" class="field-input validation-input" data-rule="maximum" placeholder="ערך מקסימלי" title="הערך המספרי המקסימלי המותר (כולל).">
                     <input type="number" class="field-input validation-input" data-rule="minimum" placeholder="ערך מינימלי" title="הערך המספרי המינימלי המותר (כולל).">
+                    <input type="number" class="field-input validation-input" data-rule="maximum" placeholder="ערך מקסימלי" title="הערך המספרי המקסימלי המותר (כולל).">
+                    <input type="text" class="field-input validation-input" data-rule="enum" placeholder="ערכים מותרים (מופרד בפסיק)" title="רשימה של מספרים אפשריים (מופרדים בפסיק) שהשדה יכול לקבל. לדוגמה: 1,2,3">
                 </div>
             </div>
         </div>
