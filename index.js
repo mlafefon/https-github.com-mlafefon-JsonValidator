@@ -723,7 +723,7 @@ function updateValidationVisibility(fieldRow) {
     });
 }
 
-function addSchemaFieldRow(fieldData = {}) {
+function addSchemaFieldRow(fieldData = {}, focusOnCreate = false) {
     const fragment = fieldTemplate.content.cloneNode(true);
     const fieldRow = fragment.querySelector('.schema-field-row');
     fieldRow.dataset.fieldId = nextFieldId++;
@@ -749,6 +749,13 @@ function addSchemaFieldRow(fieldData = {}) {
     fieldsContainer.appendChild(fragment);
     const newRow = fieldsContainer.lastElementChild;
     updateValidationVisibility(newRow);
+
+    if (focusOnCreate) {
+        const nameInput = newRow.querySelector('.field-name');
+        if (nameInput) {
+            nameInput.focus();
+        }
+    }
 }
 
 function buildSchemaFromUI() {
@@ -1412,7 +1419,7 @@ schemaEditSelect.addEventListener('change', loadSchemaForEditing);
 saveSchemaBtn.addEventListener('click', saveSchema);
 deleteSchemaBtn.addEventListener('click', deleteSchema);
 
-addSchemaFieldBtn.addEventListener('click', () => addSchemaFieldRow());
+addSchemaFieldBtn.addEventListener('click', () => addSchemaFieldRow({}, true));
 
 // Use event delegation for dynamic field rows
 fieldsContainer.addEventListener('input', (e) => {
