@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>בודק ומעצב JSON</title>
+    <link rel="stylesheet" href="index.css">
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1 class="title">בודק ומעצב JSON</h1>
+        </header>
+        <main class="main-content">
+            <div class="editor-pane">
+                 <div class="editor-toolbar">
+                    <select id="schema-validator-select" class="action-button schema-select" title="בחר סוג אימות" aria-label="Select schema validation type">
+                        <option value="">בחר סוג</option>
+                    </select>
+                    <button id="manage-schemas-btn" class="action-button manage-button" title="נהל סכמות" aria-label="Manage Schemas">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.25rem; height: 1.25rem;">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-1.007 1.11-1.226.554-.22 1.197-.22 1.752 0 .549.219 1.02.684 1.11 1.226l.094.542c.063.372.363.633.742.633h.542c.42 0 .82.122 1.136.342.315.22.566.52.68.882l.094.542c.09.542.017 1.12-.2 1.616-.217.496-.542.923-.966 1.229l-.542.394c-.372.27-.472.734-.286 1.11l.094.542c.219.549.219 1.197 0 1.752-.219.549-.684 1.02-1.226 1.11l-.542.094c-.372.063-.633.363-.633.742v.542c0 .42-.122.82-.342 1.136-.22.315-.52.566-.882.68l-.542.094c-.542.09-1.12.017-1.616-.2-.496-.217-.923-.542-1.229-.966l-.394-.542c-.27-.372-.734-.472-1.11-.286l-.542.094c-.549-.219-1.197.219-1.752 0-.549-.219-1.02-.684-1.11-1.226l-.094-.542c-.063-.372-.363-.633-.742-.633h-.542c-.42 0-.82-.122-1.136-.342-.315-.22-.566.52-.68-.882l-.094-.542c-.09-.542-.017-1.12.2-1.616.217.496.542.923.966 1.229l.542.394c.372.27.472.734.286 1.11l-.094-.542c-.219-.549-.219-1.197 0-1.752.219.549.684-1.02 1.226 1.11l.542-.094c.372-.063.633.363.633-.742v-.542c0-.42.122.82.342-1.136.22-.315.52-.566.882-.68l.542-.094c.542-.09 1.12-.017 1.616.2.496.217.923.542 1.229.966l.394.542c.27.372.734.472 1.11.286l.542-.094c.549-.219 1.197-.219 1.752 0 .549.219 1.02.684 1.11 1.226l.094.542c.063.372.363.633.742.633h.542c.42 0 .82.122 1.136.342.315.22.566.52.68.882l.094.542c.09.542.017 1.12-.2 1.616-.217-.496-.542.923-.966 1.229l-.542.394c-.372.27-.472.734-.286 1.11l.094.542ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z"></path>
+                        </svg>
+                        <span>נהל סכמות</span>
+                    </button>
+                    <button id="load-file-btn" class="action-button load-button" title="טען קובץ JSON מהמחשב" aria-label="Load JSON file">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.25rem; height: 1.25rem;">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"></path>
+                        </svg>
+                        <span>טען קובץ</span>
+                    </button>
+                    <button id="minify-btn" class="action-button minify-button" title="כווץ את ה-JSON לשורה אחת" aria-label="Minify JSON">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.25rem; height: 1.25rem;">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5M15 15l5.25 5.25" />
+                        </svg>
+                        <span>כווץ</span>
+                    </button>
+                    <button id="beautify-btn" class="action-button beautify-button" title="יפה לי את ה-JSON" aria-label="Format JSON">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6" style="width:1.25rem; height:1.25rem;">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z"></path>
+                        </svg>
+                       <span>יפה לי</span>
+                    </button>
+                </div>
+                <div class="editor-container">
+                    <div id="line-numbers" class="line-numbers" aria-hidden="true"><div>1</div></div>
+                    <textarea id="json-input" class="json-textarea" dir="ltr" placeholder='{ "paste": "your JSON here" }' spellcheck="false" aria-label="JSON Input" wrap="off"></textarea>
+                </div>
+                <div id="schema-feedback" class="feedback-display" hidden>
+                    <div id="schema-feedback-icon"></div>
+                    <p id="schema-feedback-message"></p>
+                </div>
+                <div id="error-display" class="error-display" hidden>
+                    <div id="error-icon"></div>
+                    <p id="error-message"></p>
+                </div>
+            </div>
+            <div id="resizer" class="resizer" role="separator" aria-label="Resize panes"></div>
+            <div class="tree-pane">
+                <h2 class="pane-title">תצוגת עץ</h2>
+                <div class="tree-search-container">
+                    <input type="search" id="tree-search-input" class="tree-search-input" placeholder="חפש במפתח או בערך...">
+                    <button id="tree-search-btn" class="action-button tree-search-button">חפש</button>
+                </div>
+                <div id="tree-view" class="tree-view-container">
+                    <p class="tree-placeholder">הצג תצוגת עץ כאן כאשר ה-JSON תקין.</p>
+                </div>
+            </div>
+        </main>
+        <footer class="app-footer">
+            <div id="status-bar" class="status-bar status-idle">
+                <div id="status-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" stroke-width="1.5" stroke="currentColor" style="width:1.5rem; height:1.5rem;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"></path>
+                    </svg>
+                </div>
+                <p id="status-message">הדבק את ה-JSON שלך ובדוק את תקינותו, או נסה פורמט JSON Lines.</p>
+            </div>
+        </footer>
+        <input type="file" id="file-input" accept=".json" hidden />
+    </div>
+
+    <div id="schema-editor-modal" class="modal-overlay" hidden>
+        <div class="modal-content">
+            <header class="modal-header">
+                <h2 class="modal-title">עורך סכמות</h2>
+                <button id="close-modal-btn" class="close-button" aria-label="Close modal">&times;</button>
+            </header>
+            <main class="modal-body">
+                <div class="schema-editor-controls">
+                    <select id="schema-edit-select" class="action-button schema-select" aria-label="Select schema to edit" title="בחר סכמה קיימת כדי לערוך אותה.">
+                        <option value="">בחר סכמה לעריכה...</option>
+                    </select>
+                    <button id="create-new-schema-btn" class="action-button" title="נקה את הטופס כדי ליצור סכמה חדשה מאפס.">צור חדש</button>
+                </div>
+                <div id="schema-editor-form-container" hidden>
+                    <div class="schema-form-grid">
+                        <div class="form-group">
+                            <label for="schema-title-input">כותרת לתצוגה (Display Title)</label>
+                            <input type="text" id="schema-title-input" class="schema-form-input" placeholder="e.g., My New Schema" title="השם הידידותי של הסכמה שיוצג ברשימות הבחירה.">
+                            <small>השם שיוצג ברשימת הבחירה וייצור את מזהה הסכמה.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="schema-description-input">תיאור</label>
+                            <input type="text" id="schema-description-input" class="schema-form-input" placeholder="e.g., A schema for user profiles" title="תיאור קצר של מטרת הסכמה.">
+                            <small>תיאור קצר של מטרת הסכמה.</small>
+                        </div>
+                    </div>
+
+                    <div class="schema-editor-main-area">
+                         <div id="schema-raw-editor-container" class="form-group">
+                            <label for="schema-content-textarea">תוכן הסכמה (JSON Schema)</label>
+                            <textarea id="schema-content-textarea" class="json-textarea schema-editor-textarea" spellcheck="false" dir="ltr" title="קוד המקור של הסכמה בפורמט JSON Schema."></textarea>
+                        </div>
+                        <div id="schema-visual-builder-container">
+                            <div id="schema-fields-container">
+                                <!-- Dynamic field rows will be injected here -->
+                            </div>
+                            <button id="add-schema-field-btn" class="action-button add-field-button">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1rem; height: 1rem;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                                <span>הוסף שדה</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="schema-editor-feedback" class="feedback-display" hidden>
+                         <div id="schema-editor-feedback-icon"></div>
+                         <p id="schema-editor-feedback-message"></p>
+                    </div>
+                     <div id="schema-complexity-warning" class="feedback-display feedback-error" hidden>
+                        <div id="schema-complexity-warning-icon"></div>
+                        <p id="schema-complexity-warning-message"></p>
+                    </div>
+                </div>
+            </main>
+            <footer id="schema-editor-footer" class="modal-footer" hidden>
+                <button id="delete-schema-btn" class="action-button delete-button" title="מחק את הסכמה הנבחרת לצמיתות.">מחק סכמה</button>
+                <div style="flex-grow: 1;"></div>
+                <button id="save-schema-btn" class="action-button save-button" title="שמור את השינויים בסכמה הנוכחית.">שמור שינויים</button>
+            </footer>
+        </div>
+    </div>
+    
+    <template id="schema-field-template">
+        <div class="schema-field-row" data-field-id="">
+            <div class="field-main">
+                <button class="delete-field-btn" aria-label="Delete field" title="מחק שדה">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.125rem; height: 1.125rem;"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.033-2.134H8.033C6.91 2.75 6 3.664 6 4.834v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                </button>
+                <label class="field-required-label" title="האם השדה הוא שדה חובה?">
+                    <input type="checkbox" class="field-required">
+                    נדרש
+                </label>
+                <input type="text" class="field-input field-description" placeholder="תיאור" aria-label="Field Description" title="תיאור קצר של השדה. תיאור זה ישמש לתיעוד הסכמה.">
+                <select class="field-select field-type" aria-label="Field Type" title="סוג הנתונים של השדה. לדוגמה: string, number, boolean">
+                    <option value="string">String</option>
+                    <option value="number">Number</option>
+                    <option value="integer">Integer</option>
+                    <option value="boolean">Boolean</option>
+                    <option value="array">Array</option>
+                    <option value="object">Object</option>
+                </select>
+                <input type="text" class="field-input field-name" placeholder="שם השדה" aria-label="Field Name" dir="ltr" title="שם השדה (key) ב-JSON. לדוגמה: 'firstName'">
+            </div>
+            <div class="field-validations">
+                <div class="validation-group" data-type="string">
+                    <input type="text" class="field-input validation-input" data-rule="enum" placeholder="ערכים מותרים (מופרד בפסיק)" title="רשימה של ערכים אפשריים (מופרדים בפסיק) שהשדה יכול לקבל. לדוגמה: cat,dog,fish">
+                    <input type="text" class="field-input validation-input" data-rule="pattern" placeholder="תבנית (Regex)" title="ביטוי רגולרי (Regex) שהערך חייב להתאים לו. לדוגמה: '^\\d{3}$'" dir="ltr">
+                    <input type="number" min="0" class="field-input validation-input" data-rule="maxLength" placeholder="אורך מקסימלי" title="האורך המקסימלי המותר עבור שדה מסוג string.">
+                    <input type="number" min="0" class="field-input validation-input" data-rule="minLength" placeholder="אורך מינימלי" title="האורך המינימלי המותר עבור שדה מסוג string.">
+                </div>
+                <div class="validation-group" data-type="number integer">
+                    <input type="text" class="field-input validation-input" data-rule="enum" placeholder="ערכים מותרים (מופרד בפסיק)" title="רשימה של מספרים אפשריים (מופרדים בפסיק) שהשדה יכול לקבל. לדוגמה: 1,2,3">
+                    <input type="number" class="field-input validation-input" data-rule="maximum" placeholder="ערך מקסימלי" title="הערך המספרי המקסימלי המותר (כולל).">
+                    <input type="number" class="field-input validation-input" data-rule="minimum" placeholder="ערך מינימלי" title="הערך המספרי המינימלי המותר (כולל).">
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script src="./index.js" defer></script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
