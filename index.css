@@ -29,7 +29,7 @@
 html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-size: 106.25%; /* Increase base font size (16px * 1.0625 = 17px) */
+    font-size: 106.25%; /* Increases base font size (16px * 1.0625 = 17px) */
 }
 
 body {
