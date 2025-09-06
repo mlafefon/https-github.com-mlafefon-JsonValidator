@@ -14,6 +14,64 @@ const ICONS = {
 const UID_SEPARATOR = '__JSON_LOC_UID__';
 const LS_SCHEMA_KEY = 'userSchemas_v2';
 
+const VALIDATION_DESCRIPTIONS = {
+    // Common
+    enum: {
+        placeholder: 'ערכים מותרים (מופרדים בפסיק)',
+        title: {
+            string: 'רשימת ערכי טקסט מותרים, מופרדים בפסיקים. לדוגמה: red, green, blue',
+            number: 'רשימת ערכים מספריים מותרים, מופרדים בפסיקים. לדוגמה: 1, 2, 3, 10.5'
+        }
+    },
+    // Number / Integer
+    minimum: {
+        placeholder: 'ערך מינימלי (כולל)',
+        title: 'הערך המינימלי המותר (כולל את הערך עצמו). לדוגמה: 0.'
+    },
+    maximum: {
+        placeholder: 'ערך מקסימלי (כולל)',
+        title: 'הערך המקסימלי המותר (כולל את הערך עצמו). לדוגמה: 100.'
+    },
+    exclusiveMinimum: {
+        placeholder: 'ערך מינימלי (לא כולל)',
+        title: 'הערך המינימלי המותר, אך לא כולל את הערך עצמו. אם הערך הוא 0, המספר הקטן ביותר שיתקבל גדול מ-0.'
+    },
+    exclusiveMaximum: {
+        placeholder: 'ערך מקסימלי (לא כולל)',
+        title: 'הערך המקסימלי המותר, אך לא כולל את הערך עצמו. אם הערך הוא 100, המספר הגדול ביותר שיתקבל קטן מ-100.'
+    },
+    multipleOf: {
+        placeholder: 'כפולה של',
+        title: 'הערך חייב להיות כפולה של מספר זה. לדוגמה: עבור כפולה של 2, הערכים 2, 4, 6 תקינים, אך 3 לא.'
+    },
+    // String
+    minLength: {
+        placeholder: 'אורך מינימלי',
+        title: 'מספר התווים המינימלי. לדוגמה: 2.'
+    },
+    maxLength: {
+        placeholder: 'אורך מקסימלי',
+        title: 'מספר התווים המקסימלי. לדוגמה: 50.'
+    },
+    pattern: {
+        placeholder: 'תבנית (Regex)',
+        title: 'ביטוי רגולרי (Regular Expression) שהערך חייב להתאים לו. לדוגמה: ^[a-z]+$ יתאים רק למחרוזות המכילות אותיות קטנות באנגלית.'
+    },
+    // Array
+    minItems: {
+        placeholder: 'מספר פריטים מינימלי',
+        title: 'המספר המינימלי של פריטים במערך. לדוגמה: 1.'
+    },
+    maxItems: {
+        placeholder: 'מספר פריטים מקסימלי',
+        title: 'המספר המקסימלי של פריטים במערך. לדוגמה: 10.'
+    },
+    uniqueItems: {
+        label: 'פריטים ייחודיים בלבד',
+        title: 'אם מסומן, כל הפריטים במערך חייבים להיות ייחודיים זה מזה.'
+    }
+};
+
 // --- DOM ELEMENTS ---
 const jsonInput = document.getElementById('json-input');
 const lineNumbers = document.getElementById('line-numbers');
@@ -54,18 +112,26 @@ const downloadSchemaBtn = document.getElementById('download-schema-btn');
 const saveSchemaBtn = document.getElementById('save-schema-btn');
 const uploadSchemaBtn = document.getElementById('upload-schema-btn');
 const schemaFileInput = document.getElementById('schema-file-input');
+const schemaEditorFormContainer = document.getElementById('schema-editor-form-container');
+const schemaEditorFooter = document.getElementById('schema-editor-footer');
 
 // --- SCHEMA BUILDER UI ELEMENTS ---
 const visualBuilderContainer = document.getElementById('schema-visual-builder-container');
-const rawEditorContainer = document.getElementById('schema-raw-editor-container');
 const fieldsContainer = document.getElementById('schema-fields-container');
 const addSchemaFieldBtn = document.getElementById('add-schema-field-btn');
 const fieldTemplate = document.getElementById('schema-field-template');
 const schemaComplexityWarning = document.getElementById('schema-complexity-warning');
 const schemaComplexityWarningIcon = document.getElementById('schema-complexity-warning-icon');
 const schemaComplexityWarningMessage = document.getElementById('schema-complexity-warning-message');
-const schemaEditorFormContainer = document.getElementById('schema-editor-form-container');
-const schemaEditorFooter = document.getElementById('schema-editor-footer');
+
+// --- ADD FIELD MODAL ELEMENTS ---
+const addFieldModal = document.getElementById('add-field-modal');
+const addFieldForm = document.getElementById('add-field-form');
+const closeAddFieldModalBtn = document.getElementById('close-add-field-modal-btn');
+const cancelAddFieldBtn = document.getElementById('cancel-add-field-btn');
+const newFieldNameInput = document.getElementById('new-field-name');
+const newFieldDescriptionInput = document.getElementById('new-field-description');
+const newFieldRequiredCheckbox = document.getElementById('new-field-required');
 
 
 // --- STATE ---
@@ -78,6 +144,7 @@ let currentErrorLineNumber = null;
 let isEditingExistingSchema = false;
 let nextFieldId = 0;
 let currentEditingSchemaKey = null;
+let currentParentForNewField = null;
 
 // --- PARSER ---
 function createLocationAwareParser() {
@@ -656,15 +723,8 @@ function validateAndParseJson() {
     buildTreeView(null);
 }
 
-/**
- * Sanitizes an input field in real-time to prevent specific characters from being entered.
- * It maintains the cursor position correctly after sanitization.
- * @param {Event} event The input event object.
- * @param {RegExp} invalidCharsRegex A regex that matches the characters to be removed.
- */
 function sanitizeInput(event, invalidCharsRegex) {
     const input = event.target;
-    // Ensure we are working with an input-like element that has a value and selection properties.
     if (!input || typeof input.value === 'undefined' || typeof input.selectionStart !== 'number') return;
 
     const originalValue = input.value;
@@ -672,20 +732,15 @@ function sanitizeInput(event, invalidCharsRegex) {
 
     if (originalValue !== sanitizedValue) {
         const selectionStart = input.selectionStart;
-        
-        // Count how many invalid characters were removed before the cursor's original position.
         const originalPrefix = originalValue.substring(0, selectionStart);
         const removedInPrefix = (originalPrefix.match(invalidCharsRegex) || []).length;
-        
         input.value = sanitizedValue;
-
-        // Set the new cursor position.
         const newCursorPos = selectionStart - removedInPrefix;
         input.setSelectionRange(newCursorPos, newCursorPos);
     }
 }
 
-// --- SCHEMA MANAGEMENT / BUILDER FUNCTIONS ---
+// --- SCHEMA MANAGEMENT / BUILDER FUNCTIONS (NEW & REWRITTEN) ---
 
 function generateKeyFromTitle(title) {
     if (!title) return '';
@@ -705,7 +760,6 @@ function populateSchemaSelects() {
 
     selects.forEach(select => {
         const currentVal = select.value;
-        // Clear existing options, keeping the placeholder
         while (select.options.length > 1) {
             select.remove(1);
         }
@@ -741,181 +795,379 @@ function displaySchemaEditorFeedback(type, message) {
     }, 5000);
 }
 
-function updateValidationVisibility(fieldRow) {
-    const selectedType = fieldRow.querySelector('.field-type').value;
-    const validationGroups = fieldRow.querySelectorAll('.validation-group');
-    validationGroups.forEach(group => {
-        const supportedTypes = group.dataset.type.split(' ');
-        if (supportedTypes.includes(selectedType)) {
-            group.hidden = false;
-        } else {
-            group.hidden = true;
-        }
-    });
+function triggerUIUpdate() {
+    clearTimeout(schemaBuilderTimeout);
+    schemaBuilderTimeout = setTimeout(buildSchemaFromUI, 300);
 }
 
-function addSchemaFieldRow(fieldData = {}, focusOnCreate = false) {
-    const fragment = fieldTemplate.content.cloneNode(true);
-    const fieldRow = fragment.querySelector('.schema-field-row');
-    fieldRow.dataset.fieldId = nextFieldId++;
+function renderFieldDetails(fieldRow, type, initialData = {}) {
+    const validationsContainer = fieldRow.querySelector('.field-validations');
+    const childrenContainer = fieldRow.querySelector('.field-children-container');
+    const actionsContainer = fieldRow.querySelector('.field-actions');
+    const fieldId = fieldRow.dataset.fieldId;
 
-    if (fieldData.name) fieldRow.querySelector('.field-name').value = fieldData.name;
-    if (fieldData.type) fieldRow.querySelector('.field-type').value = fieldData.type;
-    if (fieldData.description) fieldRow.querySelector('.field-description').value = fieldData.description;
-    if (fieldData.required) fieldRow.querySelector('.field-required').checked = fieldData.required;
+    validationsContainer.innerHTML = '';
+    let validationHTML = '';
 
-    // Populate validation rules
-    const validationInputs = fieldRow.querySelectorAll('.validation-input');
-    validationInputs.forEach(input => {
-        const rule = input.dataset.rule;
-        if (fieldData[rule] !== undefined) {
-            if (rule === 'enum' && Array.isArray(fieldData[rule])) {
-                input.value = fieldData[rule].join(', ');
-            } else {
-                input.value = fieldData[rule];
-            }
+    const createInputHTML = (rule, inputType, value, extraAttrs = '') => {
+        const desc = VALIDATION_DESCRIPTIONS[rule];
+        if (!desc) return '';
+
+        let tooltip = desc.title;
+        if (rule === 'enum' && typeof desc.title === 'object') {
+            tooltip = (type === 'number' || type === 'integer') ? desc.title.number : desc.title.string;
         }
-    });
 
-    fieldsContainer.appendChild(fragment);
-    const newRow = fieldsContainer.lastElementChild;
-    updateValidationVisibility(newRow);
+        const valueAttr = value !== undefined && value !== null ? `value="${String(value).replace(/"/g, '&quot;')}"` : '';
+        return `
+            <div class="form-group">
+                <input 
+                    type="${inputType}" 
+                    class="schema-form-input validation-input" 
+                    data-rule="${rule}" 
+                    ${valueAttr}
+                    placeholder="${desc.placeholder}" 
+                    title="${tooltip}"
+                    ${extraAttrs}
+                >
+            </div>
+        `;
+    };
 
-    if (focusOnCreate) {
-        const nameInput = newRow.querySelector('.field-name');
-        if (nameInput) {
-            nameInput.focus();
+    if (type === 'number' || type === 'integer') {
+        ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'].forEach(rule => {
+            validationHTML += createInputHTML(rule, 'number', initialData[rule] ?? '');
+        });
+        validationHTML += createInputHTML('enum', 'text', (initialData.enum ?? []).join(', '));
+    } else if (type === 'string') {
+        ['minLength', 'maxLength'].forEach(rule => {
+             validationHTML += createInputHTML(rule, 'number', initialData[rule] ?? '', 'min="0"');
+        });
+        validationHTML += createInputHTML('pattern', 'text', initialData.pattern ?? '', 'dir="ltr"');
+        validationHTML += createInputHTML('enum', 'text', (initialData.enum ?? []).join(', '));
+    } else if (type === 'array') {
+        const itemSchema = initialData.items || {};
+        const itemType = itemSchema.type || 'string';
+        
+        ['minItems', 'maxItems'].forEach(rule => {
+            validationHTML += createInputHTML(rule, 'number', initialData[rule] ?? '', 'min="0"');
+        });
+
+        const uniqueDesc = VALIDATION_DESCRIPTIONS.uniqueItems;
+        validationHTML += `
+            <div class="form-group form-group-toggle full-width" title="${uniqueDesc.title}">
+                 <label class="toggle-switch">
+                    <input type="checkbox" id="unique-items-${fieldId}" class="validation-input" data-rule="uniqueItems" ${initialData.uniqueItems ? 'checked' : ''}>
+                    <span class="slider"></span>
+                </label>
+                <label for="unique-items-${fieldId}" class="toggle-label">${uniqueDesc.label}</label>
+            </div>
+            <div class="array-item-type-container full-width">
+                 <h4 class="array-item-type-title">סוג הפריטים במערך</h4>
+                 <div class="field-type-select-wrapper">
+                    <select class="array-item-type-select" aria-label="Array item type">
+                        <option value="string" ${itemType === 'string' ? 'selected' : ''}>Text</option>
+                        <option value="number" ${itemType === 'number' ? 'selected' : ''}>Number</option>
+                        <option value="integer" ${itemType === 'integer' ? 'selected' : ''}>Integer</option>
+                        <option value="boolean" ${itemType === 'boolean' ? 'selected' : ''}>Yes/No</option>
+                        <option value="object" ${itemType === 'object' ? 'selected' : ''}>Object</option>
+                    </select>
+                </div>
+            </div>
+        `;
+    }
+
+    validationsContainer.innerHTML = validationHTML;
+    
+    const isContainerType = type === 'object' || (type === 'array' && (initialData.items?.type || 'string') === 'object');
+    childrenContainer.hidden = !isContainerType;
+    actionsContainer.hidden = !isContainerType;
+    
+    if (isContainerType) {
+        if (!actionsContainer.querySelector('button')) {
+            const addButton = document.createElement('button');
+            addButton.type = 'button';
+            addButton.className = 'action-button add-field-button-nested';
+            addButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" stroke-width="1.5" stroke="currentColor" style="width: 1rem; height: 1rem;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg><span>${type === 'object' ? 'הוסף שדה' : 'הוסף מאפיין'}</span>`;
+            actionsContainer.appendChild(addButton);
+        }
+        if (childrenContainer.children.length === 0 && !childrenContainer.querySelector('.field-placeholder')) {
+             const placeholder = document.createElement('div');
+             placeholder.className = 'field-placeholder';
+             placeholder.textContent = type === 'object' ? 'אין שדות מוגדרים' : 'אין מאפיינים מוגדרים';
+             childrenContainer.appendChild(placeholder);
         }
     }
 }
 
+function activateInlineEdit(displayElement, propertyToUpdate) {
+    const fieldRow = displayElement.closest('.schema-field-row');
+    if (!fieldRow || fieldRow.querySelector('.inline-edit-input')) return;
+
+    const isPlaceholder = displayElement.classList.contains('is-placeholder');
+    const originalValue = isPlaceholder ? '' : displayElement.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'inline-edit-input';
+    input.value = originalValue;
+    
+    displayElement.hidden = true;
+    displayElement.after(input);
+    input.focus();
+    input.select();
+
+    const deactivate = (saveChanges) => {
+        let newValue = input.value.trim();
+        let isValid = true;
+
+        if (saveChanges && propertyToUpdate === 'fieldName') {
+            if (!newValue || /[^a-zA-Z0-9_-]/.test(newValue)) {
+                isValid = false; // Invalid characters
+            } else {
+                // Check for duplicate field names at the same level
+                const parentContainer = fieldRow.parentElement;
+                const siblings = parentContainer.querySelectorAll(':scope > .schema-field-row');
+                for (const sibling of siblings) {
+                    if (sibling !== fieldRow && sibling.dataset.fieldName === newValue) {
+                        isValid = false; // Found a duplicate
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (saveChanges && isValid) {
+            fieldRow.dataset[propertyToUpdate] = newValue;
+            if (propertyToUpdate === 'description') {
+                if (newValue) {
+                    displayElement.textContent = newValue;
+                    displayElement.classList.remove('is-placeholder');
+                } else {
+                    displayElement.textContent = 'הוסף תיאור...';
+                    displayElement.classList.add('is-placeholder');
+                }
+            } else { // for fieldName
+                 displayElement.textContent = newValue;
+            }
+        } else {
+            // Revert on invalid or cancel
+            if (propertyToUpdate === 'description') {
+                 if (originalValue) {
+                    displayElement.textContent = originalValue;
+                    displayElement.classList.remove('is-placeholder');
+                } else {
+                    displayElement.textContent = 'הוסף תיאור...';
+                    displayElement.classList.add('is-placeholder');
+                }
+            } else {
+                displayElement.textContent = originalValue;
+            }
+        }
+        
+        input.remove();
+        displayElement.hidden = false;
+
+        if (saveChanges && isValid && originalValue !== newValue) {
+            triggerUIUpdate();
+        }
+    };
+
+    input.addEventListener('blur', () => deactivate(true));
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            deactivate(true);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            deactivate(false);
+        }
+    });
+}
+
+function createFieldElement(fieldData, validationData = {}) {
+    const fragment = fieldTemplate.content.cloneNode(true);
+    const fieldRow = fragment.querySelector('.schema-field-row');
+    const fieldId = nextFieldId++;
+    fieldRow.dataset.fieldId = fieldId;
+    fieldRow.dataset.fieldName = fieldData.name;
+    fieldRow.dataset.type = fieldData.type;
+    fieldRow.dataset.required = fieldData.required;
+    fieldRow.dataset.description = fieldData.description;
+
+    fieldRow.querySelector('.field-name-display').textContent = fieldData.name;
+    const descriptionEl = fieldRow.querySelector('.field-description-display');
+    
+    if (fieldData.description) {
+        descriptionEl.textContent = fieldData.description;
+        descriptionEl.classList.remove('is-placeholder');
+    } else {
+        descriptionEl.textContent = 'הוסף תיאור...';
+        descriptionEl.classList.add('is-placeholder');
+    }
+
+    const typeSelect = fieldRow.querySelector('.field-type-select');
+    typeSelect.value = fieldData.type;
+
+    const requiredCheckbox = fieldRow.querySelector('.field-required-checkbox');
+    const requiredLabel = fieldRow.querySelector('.field-required-control label');
+    const uniqueId = `field-required-${fieldId}`;
+    requiredCheckbox.id = uniqueId;
+    requiredLabel.setAttribute('for', uniqueId);
+    requiredCheckbox.checked = fieldData.required;
+    
+    renderFieldDetails(fieldRow, fieldData.type, validationData);
+
+    return fieldRow;
+}
+
+
 function buildSchemaFromUI() {
+    function buildProperties(container) {
+        const properties = {};
+        const required = [];
+        
+        const fieldRows = container.querySelectorAll(':scope > .schema-field-row');
+
+        fieldRows.forEach(row => {
+            const name = row.dataset.fieldName;
+            if (!name) return;
+
+            const property = {
+                type: row.querySelector('.field-type-select').value,
+                description: row.dataset.description,
+            };
+
+            if (row.dataset.required === 'true') {
+                required.push(name);
+            }
+
+            if (!property.description) {
+                delete property.description;
+            }
+
+            const validationInputs = row.querySelectorAll('.validation-input');
+            validationInputs.forEach(input => {
+                const rule = input.dataset.rule;
+                if (input.type === 'checkbox') {
+                    if (input.checked) {
+                        property[rule] = true;
+                    }
+                    return;
+                }
+                
+                let value = input.value.trim();
+                if (value) {
+                     if (rule === 'enum') {
+                        const enumArray = value.split(',').map(v => v.trim()).filter(Boolean);
+                        if (enumArray.length > 0) {
+                            if (property.type === 'number' || property.type === 'integer') {
+                                property[rule] = enumArray.map(v => parseFloat(v)).filter(v => !isNaN(v));
+                            } else {
+                                property[rule] = enumArray;
+                            }
+                        }
+                    } else if (['minLength', 'maxLength', 'minItems', 'maxItems', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'].includes(rule)) {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue)) property[rule] = numValue;
+                    } else {
+                        property[rule] = value;
+                    }
+                }
+            });
+
+            if (property.type === 'object') {
+                const childrenContainer = row.querySelector('.field-children-container');
+                if(!childrenContainer.hidden) {
+                    const result = buildProperties(childrenContainer);
+                    property.properties = result.properties;
+                    if (result.required.length > 0) {
+                        property.required = result.required;
+                    }
+                }
+            } else if (property.type === 'array') {
+                const itemTypeSelect = row.querySelector('.array-item-type-select');
+                const itemType = itemTypeSelect ? itemTypeSelect.value : 'string';
+                
+                const items = { type: itemType };
+
+                if (itemType === 'object') {
+                    const childrenContainer = row.querySelector('.field-children-container');
+                     if(!childrenContainer.hidden) {
+                        const result = buildProperties(childrenContainer);
+                        items.properties = result.properties;
+                        if (result.required.length > 0) {
+                            items.required = result.required;
+                        }
+                    }
+                }
+                property.items = items;
+            }
+
+            properties[name] = property;
+        });
+
+        return { properties, required };
+    }
+
+    const rootResult = buildProperties(fieldsContainer);
     const schema = {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "title": schemaTitleInput.value.trim() || "Untitled Schema",
         "description": schemaDescriptionInput.value.trim(),
         "type": "object",
-        "properties": {},
-        "required": []
+        "properties": rootResult.properties,
     };
-
+    if (rootResult.required.length > 0) {
+        schema.required = rootResult.required;
+    }
     if (!schema.description) {
         delete schema.description;
     }
 
-    const requiredFields = [];
-    const fieldRows = fieldsContainer.querySelectorAll('.schema-field-row');
-
-    fieldRows.forEach(row => {
-        const name = row.querySelector('.field-name').value.trim();
-        if (!name) return; // Skip fields without a name
-
-        const type = row.querySelector('.field-type').value;
-        const description = row.querySelector('.field-description').value.trim();
-        const isRequired = row.querySelector('.field-required').checked;
-
-        const property = { type };
-        if (description) {
-            property.description = description;
-        }
-
-        if (isRequired) {
-            requiredFields.push(name);
-        }
-
-        // Add validation rules based on visible inputs
-        const validationInputs = row.querySelectorAll('.validation-input:not([hidden])');
-        validationInputs.forEach(input => {
-            const rule = input.dataset.rule;
-            let value = input.value.trim();
-
-            if (value) {
-                if (rule === 'enum') {
-                    const enumArray = value.split(',').map(v => v.trim()).filter(Boolean);
-                    if (enumArray.length > 0) {
-                        if (type === 'number' || type === 'integer') {
-                            property[rule] = enumArray.map(v => parseFloat(v)).filter(v => !isNaN(v));
-                        } else {
-                            property[rule] = enumArray;
-                        }
-                    }
-                } else if (['minLength', 'maxLength', 'minimum', 'maximum'].includes(rule)) {
-                    const numValue = parseFloat(value);
-                    if (!isNaN(numValue)) {
-                        property[rule] = numValue;
-                    }
-                } else {
-                    property[rule] = value;
-                }
-            }
-        });
-
-        schema.properties[name] = property;
-    });
-
-    if (requiredFields.length > 0) {
-        schema.required = requiredFields;
-    } else {
-        delete schema.required;
-    }
-    
-    // Prevent event loops by only updating if the content is different
     try {
         const currentContent = JSON.parse(schemaContentTextarea.value);
         if (JSON.stringify(currentContent) === JSON.stringify(schema)) {
             return;
         }
-    } catch(e) {
-        // Current content is invalid, so update is needed
-    }
+    } catch(e) { /* ignore */}
 
     schemaContentTextarea.value = JSON.stringify(schema, null, 2);
 }
 
 function populateUIFromSchema(schema) {
+    function populate(container, properties, required = []) {
+        Object.entries(properties).forEach(([name, prop]) => {
+            const fieldData = {
+                name,
+                description: prop.description || '',
+                type: prop.type,
+                required: required.includes(name)
+            };
+            const fieldRow = createFieldElement(fieldData, prop);
+            
+            if (prop.type === 'object' && prop.properties) {
+                const childrenContainer = fieldRow.querySelector('.field-children-container');
+                populate(childrenContainer, prop.properties, prop.required);
+            } else if (prop.type === 'array' && prop.items?.type === 'object' && prop.items.properties) {
+                const childrenContainer = fieldRow.querySelector('.field-children-container');
+                populate(childrenContainer, prop.items.properties, prop.items.required);
+            }
+            
+            container.appendChild(fieldRow);
+        });
+
+        const placeholder = container.querySelector(':scope > .field-placeholder');
+        if (placeholder && container.children.length > 1) {
+            placeholder.remove();
+        }
+    }
+    
     fieldsContainer.innerHTML = '';
     schemaTitleInput.value = schema?.title || '';
     schemaDescriptionInput.value = schema?.description || '';
     
-    let canUseBuilder = true;
-    schemaComplexityWarning.hidden = true;
-
-    if (!schema || schema.type !== 'object' || typeof schema.properties !== 'object') {
-        canUseBuilder = false;
-    } else {
-        for (const key in schema.properties) {
-            const prop = schema.properties[key];
-            if (typeof prop.type !== 'string') {
-                canUseBuilder = false;
-                break;
-            }
-        }
-    }
-
-    if (!canUseBuilder) {
-        schemaComplexityWarningIcon.innerHTML = ICONS.IDLE;
-        schemaComplexityWarningMessage.textContent = "הסכמה מורכבת מדי לבנאי הויזואלי. ניתן לערוך אותה רק דרך עורך ה-JSON.";
-        schemaComplexityWarning.hidden = false;
-        return;
-    }
-    
-    const properties = schema.properties || {};
-    const required = schema.required || [];
-
-    for (const name in properties) {
-        const prop = properties[name];
-        addSchemaFieldRow({
-            name,
-            type: prop.type,
-            description: prop.description,
-            required: required.includes(name),
-            minLength: prop.minLength,
-            maxLength: prop.maxLength,
-            pattern: prop.pattern,
-            minimum: prop.minimum,
-            maximum: prop.maximum,
-            enum: prop.enum,
-        });
+    if (schema?.type === 'object' && schema?.properties) {
+        populate(fieldsContainer, schema.properties, schema.required);
     }
 }
 
@@ -933,6 +1185,16 @@ function updateVisualBuilderFromRaw() {
             };
 
             const schema = JSON.parse(rawContent);
+            
+            if (schema.type !== 'object' || Array.isArray(schema)) {
+                 schemaComplexityWarningIcon.innerHTML = ICONS.IDLE;
+                schemaComplexityWarningMessage.textContent = "הבנאי הויזואלי תומך רק בסכמה מסוג 'object' ברמה העליונה.";
+                schemaComplexityWarning.hidden = false;
+                fieldsContainer.innerHTML = '';
+                return;
+            }
+
+            schemaComplexityWarning.hidden = true;
             populateUIFromSchema(schema);
         } catch (e) {
             fieldsContainer.innerHTML = '';
@@ -953,7 +1215,6 @@ function clearSchemaEditorForm() {
     schemaEditorFeedback.hidden = true;
     schemaComplexityWarning.hidden = true;
     fieldsContainer.innerHTML = '';
-    clearSchemaHighlight();
 }
 
 function loadSchemaForEditing() {
@@ -975,19 +1236,23 @@ function loadSchemaForEditing() {
     if (schema) {
         isEditingExistingSchema = true;
         schemaContentTextarea.value = JSON.stringify(schema, null, 2);
-        populateUIFromSchema(schema);
+        updateVisualBuilderFromRaw(); // Use this to populate UI from raw text
     }
 }
 
 function saveSchema() {
     const title = schemaTitleInput.value.trim();
+    if (!title) {
+        displaySchemaEditorFeedback('error', 'כותרת הסכמה היא שדה חובה.');
+        return;
+    }
+
     const newKey = generateKeyFromTitle(title);
-    
-    buildSchemaFromUI();
+    buildSchemaFromUI(); // Ensure raw text is up to date
     const content = schemaContentTextarea.value.trim();
 
-    if (!title || !content) {
-        displaySchemaEditorFeedback('error', 'יש למלא את כל השדות: כותרת ותוכן.');
+    if (!content) {
+        displaySchemaEditorFeedback('error', 'תוכן הסכמה לא יכול להיות ריק.');
         return;
     }
     
@@ -1004,20 +1269,9 @@ function saveSchema() {
         return;
     }
     
-    parsedContent.title = title;
-    parsedContent.description = schemaDescriptionInput.value.trim();
-    if (!parsedContent.description) {
-        delete parsedContent.description;
-    }
-
-    if (!schemaData) {
-        schemaData = {};
-    }
-    
     if (isEditingExistingSchema && currentEditingSchemaKey && newKey !== currentEditingSchemaKey) {
         delete schemaData[currentEditingSchemaKey];
     }
-
     schemaData[newKey] = parsedContent;
 
     try {
@@ -1044,7 +1298,6 @@ function downloadSchemaFile() {
     }
 
     try {
-        // Validate it's JSON before saving
         JSON.parse(content);
     } catch(e) {
         displaySchemaEditorFeedback('error', 'לא ניתן לשמור קובץ, תוכן הסכמה אינו JSON תקין.');
@@ -1069,16 +1322,12 @@ function downloadSchemaFile() {
 
 function openSchemaEditor() {
     const selectedSchemaKey = schemaValidatorSelect.value;
-
     schemaEditorModal.hidden = false;
     populateSchemaSelects();
-    
-    // Check if a valid schema was selected in the main view
     if (selectedSchemaKey && schemaData && schemaData[selectedSchemaKey]) {
         schemaEditSelect.value = selectedSchemaKey;
-        loadSchemaForEditing(); // This function will load the data and show the form
+        loadSchemaForEditing();
     } else {
-        // If no schema was selected, just open the editor in its default state
         clearSchemaEditorForm();
         schemaEditorFormContainer.hidden = true;
         schemaEditorFooter.hidden = true;
@@ -1087,112 +1336,41 @@ function openSchemaEditor() {
 
 function closeSchemaEditor() {
     schemaEditorModal.hidden = true;
-    clearSchemaHighlight();
 }
 
-function clearSchemaHighlight() {
-    const textarea = schemaContentTextarea;
-    // Collapse selection to its start to remove highlight without moving cursor
-    if (textarea.selectionEnd > textarea.selectionStart) {
-        textarea.setSelectionRange(textarea.selectionStart, textarea.selectionStart);
+// --- Add Field Modal Logic ---
+function openAddFieldModal(parentContainer) {
+    currentParentForNewField = parentContainer;
+    addFieldForm.reset();
+    newFieldNameInput.focus();
+    addFieldModal.hidden = false;
+}
+
+function closeAddFieldModal() {
+    addFieldModal.hidden = true;
+    currentParentForNewField = null;
+}
+
+function handleAddFieldFromModal(event) {
+    event.preventDefault();
+    const fieldData = {
+        name: newFieldNameInput.value.trim(),
+        description: newFieldDescriptionInput.value.trim(),
+        type: addFieldForm.elements.fieldType.value,
+        required: newFieldRequiredCheckbox.checked
+    };
+
+    if (currentParentForNewField) {
+        const placeholder = currentParentForNewField.querySelector(':scope > .field-placeholder');
+        if (placeholder) placeholder.remove();
+
+        const fieldEl = createFieldElement(fieldData);
+        currentParentForNewField.appendChild(fieldEl);
     }
+    
+    triggerUIUpdate();
+    closeAddFieldModal();
 }
-
-function highlightSchemaProperty(focusedElement) {
-    const textarea = schemaContentTextarea;
-
-    if (!focusedElement || !textarea.value.trim()) {
-        return;
-    }
-
-    const row = focusedElement.closest('.schema-field-row');
-    if (!row) return;
-
-    // Use a microtask to ensure any pending UI/model updates (like from an input event) have completed
-    setTimeout(() => {
-        const text = textarea.value;
-        const fieldName = row.querySelector('.field-name').value.trim();
-        if (!fieldName || !text) return;
-
-        let startIndex = -1;
-        let endIndex = -1;
-        
-        let keyToFind = '';
-        let isRequiredSearch = false;
-
-        if (focusedElement.classList.contains('field-name')) {
-            keyToFind = `"${fieldName}"`;
-        } else if (focusedElement.classList.contains('field-type')) {
-            keyToFind = `"type"`;
-        } else if (focusedElement.classList.contains('field-description')) {
-            keyToFind = `"description"`;
-        } else if (focusedElement.dataset.rule) {
-            keyToFind = `"${focusedElement.dataset.rule}"`;
-        } else if (focusedElement.classList.contains('field-required')) {
-            isRequiredSearch = true;
-        }
-
-        if (!keyToFind && !isRequiredSearch) return;
-
-        if (isRequiredSearch) {
-            const requiredRegex = /"required"\s*:\s*\[([^\]]*)\]/;
-            const requiredMatch = text.match(requiredRegex);
-            if (requiredMatch) {
-                const requiredArrayContent = requiredMatch[1];
-                const requiredArrayOffset = requiredMatch.index + requiredMatch[0].indexOf('[') + 1;
-                const nameInArrayRegex = new RegExp(`"${fieldName}"`);
-                const nameMatch = requiredArrayContent.match(nameInArrayRegex);
-                if (nameMatch) {
-                    startIndex = requiredArrayOffset + nameMatch.index;
-                    endIndex = startIndex + nameMatch[0].length;
-                }
-            }
-        } else {
-            const propRegex = new RegExp(`"${fieldName}"\\s*:\\s*{`);
-            const propMatch = text.match(propRegex);
-            const propStartIndex = propMatch ? propMatch.index : -1;
-            
-            if (propStartIndex !== -1) {
-                if (focusedElement.classList.contains('field-name')) {
-                    startIndex = propStartIndex;
-                    endIndex = propStartIndex + keyToFind.length;
-                } else {
-                    let openBraces = 1;
-                    let searchAreaEnd = text.length;
-                    for (let i = propStartIndex + propMatch[0].length; i < text.length; i++) {
-                        if (text[i] === '{') openBraces++;
-                        if (text[i] === '}') openBraces--;
-                        if (openBraces === 0) {
-                            searchAreaEnd = i;
-                            break;
-                        }
-                    }
-                    const keyIndex = text.substring(propStartIndex, searchAreaEnd).indexOf(keyToFind);
-                    if (keyIndex !== -1) {
-                        startIndex = propStartIndex + keyIndex;
-                        endIndex = startIndex + keyToFind.length;
-                    }
-                }
-            }
-        }
-        
-        if (startIndex !== -1 && endIndex !== -1) {
-            textarea.setSelectionRange(startIndex, endIndex);
-
-            const textToSelection = text.substring(0, startIndex);
-            const lineNum = textToSelection.split('\n').length;
-            const computedStyle = window.getComputedStyle(textarea);
-            const realLineHeight = parseFloat(computedStyle.lineHeight) || 24;
-            const targetScrollTop = (lineNum - 1) * realLineHeight;
-
-            if (textarea.scrollTop > targetScrollTop || (textarea.scrollTop + textarea.clientHeight) < (targetScrollTop + realLineHeight)) {
-                 textarea.scrollTop = Math.max(0, targetScrollTop - textarea.clientHeight / 3);
-            }
-        }
-
-    }, 0);
-}
-
 
 async function initializeSchemaValidator() {
     try {
@@ -1232,7 +1410,6 @@ async function initializeSchemaValidator() {
         }
     } catch (e) {
         console.error("Could not load or parse schema data:", e);
-        // In case of any error, start with an empty set of schemas
         schemaData = {};
     }
 
@@ -1242,58 +1419,38 @@ async function initializeSchemaValidator() {
 function initResize(e) {
     if (e.button !== 0) return;
     e.preventDefault();
-
     const startX = e.clientX;
     const startEditorWidth = editorPane.offsetWidth;
     const startTreeWidth = treePane.offsetWidth;
-
     const doResize = (moveEvent) => {
         const dx = moveEvent.clientX - startX;
         const totalWidth = startEditorWidth + startTreeWidth;
         const minWidth = 200;
-
         let newEditorWidth = startEditorWidth - dx;
-
-        if (newEditorWidth < minWidth) {
-            newEditorWidth = minWidth;
-        }
-        if (totalWidth - newEditorWidth < minWidth) {
-            newEditorWidth = totalWidth - minWidth;
-        }
-
+        if (newEditorWidth < minWidth) newEditorWidth = minWidth;
+        if (totalWidth - newEditorWidth < minWidth) newEditorWidth = totalWidth - minWidth;
         const newEditorFraction = newEditorWidth / totalWidth;
         const newTreeFraction = 1 - newEditorFraction;
-
         mainContent.style.gridTemplateColumns = `${newEditorFraction}fr 5px ${newTreeFraction}fr`;
     };
-
     const stopResize = () => {
         window.removeEventListener('mousemove', doResize);
         window.removeEventListener('mouseup', stopResize);
     };
-
     window.addEventListener('mousemove', doResize);
     window.addEventListener('mouseup', stopResize);
 }
 
 function showEasterEgg() {
-    if (document.querySelector('.easter-egg-overlay')) {
-        return;
-    }
-
+    if (document.querySelector('.easter-egg-overlay')) return;
     const overlay = document.createElement('div');
     overlay.className = 'easter-egg-overlay';
-
     const messageBox = document.createElement('div');
     messageBox.className = 'easter-egg-box';
     messageBox.textContent = 'made by: Galanti Amir';
-
     overlay.appendChild(messageBox);
     document.body.appendChild(overlay);
-
-    overlay.addEventListener('click', () => {
-        overlay.remove();
-    });
+    overlay.addEventListener('click', () => overlay.remove());
 }
 
 function clearSearchHighlights() {
@@ -1304,11 +1461,7 @@ function clearSearchHighlights() {
 function performTreeSearch() {
     clearSearchHighlights();
     const searchTerm = treeSearchInput.value.trim().toLowerCase();
-
-    if (!searchTerm) {
-        return;
-    }
-
+    if (!searchTerm) return;
     const revealNode = (node) => {
         let parent = node.closest('details');
         while(parent) {
@@ -1316,18 +1469,15 @@ function performTreeSearch() {
             parent = parent.parentElement.closest('details');
         }
     };
-
     const leaves = treeView.querySelectorAll('.tree-leaf');
     leaves.forEach(leaf => {
         const key = leaf.querySelector('.tree-key')?.textContent.toLowerCase() || '';
         const value = leaf.querySelector('.tree-value')?.textContent.toLowerCase() || '';
-
         if (key.includes(searchTerm) || value.includes(searchTerm)) {
             leaf.classList.add('search-highlight');
             revealNode(leaf);
         }
     });
-
     const summaries = treeView.querySelectorAll('details > summary');
     summaries.forEach(summary => {
         const key = summary.querySelector('.tree-key')?.textContent.toLowerCase() || '';
@@ -1338,16 +1488,55 @@ function performTreeSearch() {
     });
 }
 
+/**
+ * Recursively generates a JSON schema from a JavaScript object or value.
+ * @param {*} data The JavaScript data to generate a schema from.
+ * @returns {object} A JSON schema object.
+ */
+function generateSchemaFromObject(data) {
+    if (data === null) {
+        return { type: 'string' }; // Defaulting null to string for UI compatibility
+    }
+    if (Array.isArray(data)) {
+        const schema = { type: 'array' };
+        if (data.length > 0) {
+            // Infer schema from the first item in the array
+            schema.items = generateSchemaFromObject(data[0]);
+        }
+        return schema;
+    }
+    if (typeof data === 'object') {
+        const schema = {
+            type: 'object',
+            properties: {},
+        };
+        const required = Object.keys(data);
+        if (required.length > 0) {
+            schema.required = required;
+        }
+        for (const key in data) {
+            if (Object.prototype.hasOwnProperty.call(data, key)) {
+                schema.properties[key] = generateSchemaFromObject(data[key]);
+            }
+        }
+        return schema;
+    }
+    if (typeof data === 'number') {
+        return { type: Number.isInteger(data) ? 'integer' : 'number' };
+    }
+    // All others (string, boolean)
+    return { type: typeof data };
+}
+
+
 // --- EVENT LISTENERS ---
 jsonInput.addEventListener('input', () => {
     updateLineNumbers();
     clearTimeout(validationTimeout);
     validationTimeout = setTimeout(validateAndParseJson, 500);
 });
-
 jsonInput.addEventListener('paste', () => {
     const wasEmpty = jsonInput.value.trim() === '';
-    
     setTimeout(() => {
         if (wasEmpty) {
             jsonInput.focus();
@@ -1358,193 +1547,102 @@ jsonInput.addEventListener('paste', () => {
         }
     }, 0);
 });
-
 jsonInput.addEventListener('scroll', handleScroll);
 beautifyBtn.addEventListener('click', beautifyJson);
 minifyBtn.addEventListener('click', minifyJson);
 schemaValidatorSelect.addEventListener('change', validateAndParseJson);
-
-
 treeView.addEventListener('click', (e) => {
-    if (e.target.tagName === 'SUMMARY') {
-        return;
-    }
-    
+    if (e.target.tagName === 'SUMMARY') return;
     const target = e.target.closest('[data-line]');
     if (target) {
         const lineNumber = parseInt(target.dataset.line, 10);
         highlightLine(lineNumber);
     }
 });
-
-loadFileBtn.addEventListener('click', () => {
-    fileInput.click();
-});
-
+loadFileBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', (event) => {
     const file = event.target.files[0];
-    if (!file) {
-        return;
-    }
-
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = (e) => {
-        const text = e.target.result;
-        jsonInput.value = text;
-        
+        jsonInput.value = e.target.result;
         jsonInput.focus();
         jsonInput.setSelectionRange(0, 0);
         jsonInput.scrollTop = 0;
         jsonInput.scrollLeft = 0;
-
         updateLineNumbers();
         validateAndParseJson();
         handleScroll();
     };
-    reader.onerror = () => {
-        updateStatusBar(ValidationStatus.ERROR, `שגיאה בקריאת הקובץ: ${reader.error.message}`);
-    };
+    reader.onerror = () => updateStatusBar(ValidationStatus.ERROR, `שגיאה בקריאת הקובץ: ${reader.error.message}`);
     reader.readAsText(file);
-
     event.target.value = '';
 });
-
 errorDisplay.addEventListener('click', () => {
     if (currentErrorLineNumber === null) return;
-
     jsonInput.focus();
-
     const lines = jsonInput.value.split('\n');
     const position = lines.slice(0, currentErrorLineNumber - 1).reduce((acc, line) => acc + line.length + 1, 0);
-    
     jsonInput.setSelectionRange(position, position);
-
     const lineHeight = parseFloat(getComputedStyle(jsonInput).lineHeight);
     const targetScroll = (currentErrorLineNumber - 1) * lineHeight;
     jsonInput.scrollTo({ top: targetScroll, behavior: 'smooth' });
 });
-
-if (resizer) {
-    resizer.addEventListener('mousedown', initResize);
-}
-
-titleEl.addEventListener('click', (e) => {
-    if (e.ctrlKey) {
-        showEasterEgg();
-    }
-});
-
+if (resizer) resizer.addEventListener('mousedown', initResize);
+titleEl.addEventListener('click', (e) => { if (e.ctrlKey) showEasterEgg(); });
 treeSearchBtn.addEventListener('click', performTreeSearch);
-
-treeSearchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        performTreeSearch();
-    }
-});
-
-treeSearchInput.addEventListener('input', () => {
-    if (treeSearchInput.value.trim() === '') {
-        clearSearchHighlights();
-    }
-});
+treeSearchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); performTreeSearch(); } });
+treeSearchInput.addEventListener('input', () => { if (treeSearchInput.value.trim() === '') clearSearchHighlights(); });
 
 // --- SCHEMA EDITOR EVENT LISTENERS ---
 manageSchemasBtn.addEventListener('click', openSchemaEditor);
 closeModalBtn.addEventListener('click', closeSchemaEditor);
-schemaEditorModal.addEventListener('click', (e) => {
-    if (e.target === schemaEditorModal) {
-        closeSchemaEditor();
-    }
-});
-
-uploadSchemaBtn.addEventListener('click', () => {
-    schemaFileInput.click();
-});
-
+schemaEditorModal.addEventListener('click', (e) => { if (e.target === schemaEditorModal) closeSchemaEditor(); });
+uploadSchemaBtn.addEventListener('click', () => schemaFileInput.click());
 schemaFileInput.addEventListener('change', (event) => {
     const file = event.target.files[0];
-    if (!file) {
-        return;
-    }
-
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = (e) => {
-        const text = e.target.result;
         try {
-            const loadedJson = JSON.parse(text);
-
+            const loadedJson = JSON.parse(e.target.result);
             clearSchemaEditorForm();
             schemaEditorFormContainer.hidden = false;
             schemaEditorFooter.hidden = false;
-
             const isSchema = loadedJson && typeof loadedJson === 'object' && !Array.isArray(loadedJson) && (loadedJson.hasOwnProperty('$schema') || loadedJson.hasOwnProperty('properties'));
             let schemaToLoad;
             let titleToSet = file.name.replace(/\.json$/i, '');
-
             if (isSchema) {
                 schemaToLoad = loadedJson;
-                if (schemaToLoad.title) {
-                    titleToSet = schemaToLoad.title;
-                } else {
-                    schemaToLoad.title = titleToSet;
-                }
+                if (schemaToLoad.title) titleToSet = schemaToLoad.title; else schemaToLoad.title = titleToSet;
             } else if (loadedJson && typeof loadedJson === 'object' && !Array.isArray(loadedJson)) {
                 displaySchemaEditorFeedback('success', 'קובץ JSON רגיל זוהה. מתבצעת המרה אוטומטית לסכמה.');
-
+                
+                const inferredSchema = generateSchemaFromObject(loadedJson);
+            
                 const newSchema = {
                     "$schema": "http://json-schema.org/draft-07/schema#",
-                    "title": titleToSet,
+                    "title": titleToSet, 
                     "description": `סכמה שנוצרה אוטומטית מהקובץ ${file.name}`,
-                    "type": "object",
-                    "properties": {}
+                    "type": "object", 
+                    "properties": inferredSchema.properties,
                 };
+                if (inferredSchema.required && inferredSchema.required.length > 0) {
+                    newSchema.required = inferredSchema.required;
+                }
                 
-                const requiredKeys = Object.keys(loadedJson);
-                if (requiredKeys.length > 0) {
-                    newSchema.required = requiredKeys;
-                }
-
-                for (const key of requiredKeys) {
-                    const value = loadedJson[key];
-                    let type;
-                    if (value === null) {
-                        type = 'null';
-                    } else if (Array.isArray(value)) {
-                        type = 'array';
-                    } else if (typeof value === 'number') {
-                        type = Number.isInteger(value) ? 'integer' : 'number';
-                    } else {
-                        type = typeof value; // 'string', 'boolean', 'object'
-                    }
-                    newSchema.properties[key] = { type };
-                }
-
                 schemaToLoad = newSchema;
-            } else {
-                throw new Error("לא ניתן להמיר את קובץ ה-JSON. יש להעלות אובייקט JSON (לא מערך או ערך פרימיטיבי).");
-            }
-
-            schemaTitleInput.value = titleToSet;
+            } else throw new Error("לא ניתן להמיר את קובץ ה-JSON. יש להעלות אובייקט JSON.");
             schemaContentTextarea.value = JSON.stringify(schemaToLoad, null, 2);
-            populateUIFromSchema(schemaToLoad);
-            
+            updateVisualBuilderFromRaw();
             isEditingExistingSchema = false;
             currentEditingSchemaKey = null;
-
-        } catch (err) {
-            displaySchemaEditorFeedback('error', `קובץ לא תקין. ${err.message}`);
-        }
+        } catch (err) { displaySchemaEditorFeedback('error', `קובץ לא תקין. ${err.message}`); }
     };
-    reader.onerror = () => {
-        displaySchemaEditorFeedback('error', `שגיאה בקריאת הקובץ: ${reader.error.message}`);
-    };
+    reader.onerror = () => displaySchemaEditorFeedback('error', `שגיאה בקריאת הקובץ: ${reader.error.message}`);
     reader.readAsText(file);
-
     event.target.value = '';
 });
-
-
 createNewSchemaBtn.addEventListener('click', () => {
     clearSchemaEditorForm();
     schemaEditorFormContainer.hidden = false;
@@ -1554,108 +1652,145 @@ createNewSchemaBtn.addEventListener('click', () => {
 schemaEditSelect.addEventListener('change', loadSchemaForEditing);
 saveSchemaBtn.addEventListener('click', saveSchema);
 downloadSchemaBtn.addEventListener('click', downloadSchemaFile);
+schemaContentTextarea.addEventListener('input', updateVisualBuilderFromRaw);
+addSchemaFieldBtn.addEventListener('click', () => openAddFieldModal(fieldsContainer));
 
-
-addSchemaFieldBtn.addEventListener('click', () => addSchemaFieldRow({ required: true }, true));
-
-// Use event delegation for dynamic field rows
-fieldsContainer.addEventListener('input', (e) => {
-    // Sanitize Field Name and Regex Pattern inputs to allow only ASCII characters
-    if (e.target.classList.contains('field-name') || (e.target.matches('.validation-input') && e.target.dataset.rule === 'pattern')) {
-        sanitizeInput(e, /[^\x00-\x7F]/g); // Non-ASCII characters regex
+// --- VISUAL BUILDER DELEGATED EVENT LISTENERS ---
+visualBuilderContainer.addEventListener('click', (e) => {
+    // Handle Add Field button for nested objects/arrays
+    const addBtn = e.target.closest('.add-field-button-nested');
+    if (addBtn) {
+        const parentRow = addBtn.closest('.schema-field-row');
+        const childrenContainer = parentRow.querySelector('.field-children-container');
+        openAddFieldModal(childrenContainer);
+        return;
     }
 
-    clearTimeout(schemaBuilderTimeout);
-    schemaBuilderTimeout = setTimeout(() => {
-        buildSchemaFromUI();
-        // After UI builds schema, re-highlight the current element as text has changed
-        if (document.activeElement && visualBuilderContainer.contains(document.activeElement)) {
-            highlightSchemaProperty(document.activeElement);
-        }
-    }, 300);
-});
-
-fieldsContainer.addEventListener('change', (e) => {
-    if (e.target.classList.contains('field-type')) {
-        const fieldRow = e.target.closest('.schema-field-row');
-        if (fieldRow) {
-            updateValidationVisibility(fieldRow);
-        }
-    }
-});
-
-fieldsContainer.addEventListener('click', (e) => {
+    // Handle Delete Field button
     const deleteBtn = e.target.closest('.delete-field-btn');
     if (deleteBtn) {
         const fieldRow = deleteBtn.closest('.schema-field-row');
         if (fieldRow) {
+            const parent = fieldRow.parentElement;
             fieldRow.remove();
-            buildSchemaFromUI();
+            if (parent && parent.classList.contains('field-children-container') && parent.children.length === 0) {
+                 const placeholder = document.createElement('div');
+                 placeholder.className = 'field-placeholder';
+                 placeholder.textContent = 'אין שדות מוגדרים';
+                 parent.appendChild(placeholder);
+            }
+            triggerUIUpdate();
         }
+        return;
+    }
+
+    // Handle summary click for toggling and inline editing
+    const summary = e.target.closest('summary.field-summary');
+    if (summary) {
+        // If an editable span is clicked, start editing and prevent toggle.
+        const nameDisplay = e.target.closest('.field-name-display');
+        if (nameDisplay) {
+            activateInlineEdit(nameDisplay, 'fieldName');
+            e.preventDefault();
+            return;
+        }
+
+        const descDisplay = e.target.closest('.field-description-display');
+        if (descDisplay) {
+            activateInlineEdit(descDisplay, 'description');
+            e.preventDefault();
+            return;
+        }
+
+        // If a click happens inside the controls area, prevent the details from toggling.
+        // The browser should correctly handle clicks on interactive elements (input, select, etc.)
+        // without toggling the details, so we just need to catch clicks on wrappers/padding.
+        if (e.target.closest('.field-controls')) {
+            const isInteractive = e.target.matches('input, select, label, button, option');
+            if (!isInteractive) {
+                // This was a click on a non-interactive wrapper inside the controls area.
+                // Prevent the toggle.
+                e.preventDefault();
+            }
+            // If it was on an interactive element, we do nothing, letting the browser
+            // perform the action without toggling the details. We also don't want to fall through.
+            return;
+        }
+        
+        // Clicks that reach here are on the toggle icon, or the main part of the summary.
+        // For these, we allow the default toggle behavior to happen by not doing anything.
     }
 });
+visualBuilderContainer.addEventListener('change', (e) => {
+    const target = e.target;
+    if (target.classList.contains('field-type-select')) {
+        const fieldRow = target.closest('.schema-field-row');
+        const newType = target.value;
+        fieldRow.dataset.type = newType;
+        renderFieldDetails(fieldRow, newType); // Re-render details for new type
+        triggerUIUpdate();
+    } else if (target.classList.contains('array-item-type-select')) {
+        const fieldRow = target.closest('.schema-field-row');
+        const newItemType = target.value;
+        const childrenContainer = fieldRow.querySelector('.field-children-container');
+        const actionsContainer = fieldRow.querySelector('.field-actions');
+        const isItemTypeObject = newItemType === 'object';
+        
+        childrenContainer.hidden = !isItemTypeObject;
+        actionsContainer.hidden = !isItemTypeObject;
 
-fieldsContainer.addEventListener('focusin', (e) => {
-    const targetRow = e.target.closest('.schema-field-row');
-    if (!targetRow) return;
-
-    const currentFocusedRow = fieldsContainer.querySelector('.field-row-focused');
-    if (currentFocusedRow && currentFocusedRow !== targetRow) {
-        currentFocusedRow.classList.remove('field-row-focused');
+        if (isItemTypeObject) {
+            if (!actionsContainer.querySelector('button')) {
+                const addButton = document.createElement('button');
+                addButton.type = 'button';
+                addButton.className = 'action-button add-field-button-nested';
+                addButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24" stroke-width="1.5" stroke="currentColor" style="width: 1rem; height: 1rem;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg><span>הוסף מאפיין</span>';
+                actionsContainer.appendChild(addButton);
+            }
+            if (childrenContainer.children.length === 0 && !childrenContainer.querySelector('.field-placeholder')) {
+                 const placeholder = document.createElement('div');
+                 placeholder.className = 'field-placeholder';
+                 placeholder.textContent = 'אין מאפיינים מוגדרים';
+                 childrenContainer.appendChild(placeholder);
+            }
+        }
+        triggerUIUpdate();
+    } else if (target.classList.contains('field-required-checkbox')) {
+        const fieldRow = target.closest('.schema-field-row');
+        const newState = target.checked;
+        fieldRow.dataset.required = newState;
+        triggerUIUpdate();
     }
-    targetRow.classList.add('field-row-focused');
 });
-
-fieldsContainer.addEventListener('focusout', (e) => {
-    const targetRow = e.target.closest('.schema-field-row');
-    // Remove highlight if focus moves outside of the row that is losing focus
-    if (targetRow && !targetRow.contains(e.relatedTarget)) {
-        targetRow.classList.remove('field-row-focused');
+visualBuilderContainer.addEventListener('input', (e) => {
+    const target = e.target;
+    if (target.matches('.validation-input')) {
+        if (target.matches('[data-rule="pattern"]')) {
+             sanitizeInput(e, /[^\x00-\x7F]/g); // Non-ASCII for regex
+        }
+        triggerUIUpdate();
     }
 });
-
 schemaTitleInput.addEventListener('input', (e) => {
-    // Sanitize to allow only English letters, numbers, and spaces
     sanitizeInput(e, /[^a-zA-Z0-9\s]/g);
-
-    clearTimeout(schemaBuilderTimeout);
-    schemaBuilderTimeout = setTimeout(buildSchemaFromUI, 300);
+    triggerUIUpdate();
 });
+schemaDescriptionInput.addEventListener('input', triggerUIUpdate);
 
-schemaDescriptionInput.addEventListener('input', () => {
-    clearTimeout(schemaBuilderTimeout);
-    schemaBuilderTimeout = setTimeout(buildSchemaFromUI, 300);
-});
-
-schemaContentTextarea.addEventListener('input', updateVisualBuilderFromRaw);
-
+// --- ADD FIELD MODAL LISTENERS ---
+addFieldForm.addEventListener('submit', handleAddFieldFromModal);
+closeAddFieldModalBtn.addEventListener('click', closeAddFieldModal);
+cancelAddFieldBtn.addEventListener('click', closeAddFieldModal);
+addFieldModal.addEventListener('click', (e) => { if (e.target === addFieldModal) closeAddFieldModal(); });
+newFieldNameInput.addEventListener('input', (e) => sanitizeInput(e, /[^a-zA-Z0-9_-]/g));
 
 // --- INITIALIZATION ---
 updateLineNumbers();
 validateAndParseJson();
 initializeSchemaValidator();
-
-visualBuilderContainer.addEventListener('focusin', (e) => {
-    if (e.target.matches('input, select')) {
-        highlightSchemaProperty(e.target);
-    }
-});
-
-visualBuilderContainer.addEventListener('focusout', (e) => {
-    // If the new focused element is NOT inside the visual builder or the raw editor, clear.
-    if (!visualBuilderContainer.contains(e.relatedTarget) && e.relatedTarget !== schemaContentTextarea) {
-        clearSchemaHighlight();
-    }
-});
-
-schemaContentTextarea.addEventListener('focus', () => {
-    clearSchemaHighlight();
-});
-
 const resizeObserver = new ResizeObserver(() => {
     const scrollbarHeight = jsonInput.offsetHeight - jsonInput.clientHeight;
     lineNumbers.style.paddingBottom = `calc(1rem + ${scrollbarHeight}px)`;
     handleScroll();
 });
-
 resizeObserver.observe(jsonInput);
