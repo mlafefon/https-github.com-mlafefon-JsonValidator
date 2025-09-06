@@ -133,6 +133,12 @@ const newFieldNameInput = document.getElementById('new-field-name');
 const newFieldDescriptionInput = document.getElementById('new-field-description');
 const newFieldRequiredCheckbox = document.getElementById('new-field-required');
 
+// --- CONFIRM CLOSE MODAL ---
+const confirmCloseModal = document.getElementById('confirm-close-modal');
+const confirmSaveCloseBtn = document.getElementById('confirm-save-close-btn');
+const confirmDiscardBtn = document.getElementById('confirm-discard-btn');
+const confirmCloseXBtn = document.getElementById('confirm-close-x-btn');
+
 
 // --- STATE ---
 let validationTimeout;
@@ -144,6 +150,7 @@ let currentErrorLineNumber = null;
 let isEditingExistingSchema = false;
 let nextFieldId = 0;
 let currentEditingSchemaKey = null;
+let initialSchemaStateOnLoad = '';
 let currentParentForNewField = null;
 
 // --- PARSER ---
@@ -742,6 +749,27 @@ function sanitizeInput(event, invalidCharsRegex) {
 
 // --- SCHEMA MANAGEMENT / BUILDER FUNCTIONS (NEW & REWRITTEN) ---
 
+function hasUnsavedChanges() {
+    if (schemaEditorModal.hidden || schemaEditorFormContainer.hidden) {
+        return false;
+    }
+    // An unsaved change exists if:
+    // 1. The content has been modified since it was loaded.
+    const contentModified = schemaContentTextarea.value !== initialSchemaStateOnLoad;
+    // 2. We are working on a schema that hasn't been saved to localStorage yet (i.e., a "new" or "uploaded" one).
+    const isNewUnsavedSchema = !isEditingExistingSchema;
+
+    return contentModified || isNewUnsavedSchema;
+}
+
+function attemptToCloseSchemaEditor() {
+    if (hasUnsavedChanges()) {
+        confirmCloseModal.hidden = false;
+    } else {
+        closeSchemaEditor();
+    }
+}
+
 function generateKeyFromTitle(title) {
     if (!title) return '';
     return title
@@ -1210,6 +1238,7 @@ function clearSchemaEditorForm() {
     schemaTitleInput.value = '';
     schemaDescriptionInput.value = '';
     schemaContentTextarea.value = '';
+    initialSchemaStateOnLoad = '';
     isEditingExistingSchema = false;
     currentEditingSchemaKey = null;
     schemaEditorFeedback.hidden = true;
@@ -1235,7 +1264,9 @@ function loadSchemaForEditing() {
     const schema = schemaData[key];
     if (schema) {
         isEditingExistingSchema = true;
-        schemaContentTextarea.value = JSON.stringify(schema, null, 2);
+        const schemaString = JSON.stringify(schema, null, 2);
+        schemaContentTextarea.value = schemaString;
+        initialSchemaStateOnLoad = schemaString;
         updateVisualBuilderFromRaw(); // Use this to populate UI from raw text
     }
 }
@@ -1244,21 +1275,22 @@ function saveSchema() {
     const title = schemaTitleInput.value.trim();
     if (!title) {
         displaySchemaEditorFeedback('error', 'כותרת הסכמה היא שדה חובה.');
-        return;
+        return false;
     }
 
+    const oldKey = currentEditingSchemaKey;
     const newKey = generateKeyFromTitle(title);
     buildSchemaFromUI(); // Ensure raw text is up to date
     const content = schemaContentTextarea.value.trim();
 
     if (!content) {
         displaySchemaEditorFeedback('error', 'תוכן הסכמה לא יכול להיות ריק.');
-        return;
+        return false;
     }
     
     if (schemaData && schemaData[newKey] && newKey !== currentEditingSchemaKey) {
         displaySchemaEditorFeedback('error', `סכמה עם הכותרת '${title}' כבר קיימת. בחר כותרת אחרת.`);
-        return;
+        return false;
     }
 
     let parsedContent;
@@ -1266,7 +1298,7 @@ function saveSchema() {
         parsedContent = JSON.parse(content);
     } catch (e) {
         displaySchemaEditorFeedback('error', `תוכן הסכמה אינו JSON תקין: ${e.message}`);
-        return;
+        return false;
     }
     
     if (isEditingExistingSchema && currentEditingSchemaKey && newKey !== currentEditingSchemaKey) {
@@ -1276,17 +1308,27 @@ function saveSchema() {
 
     try {
         localStorage.setItem(LS_SCHEMA_KEY, JSON.stringify(schemaData));
-        populateSchemaSelects();
-        displaySchemaEditorFeedback('success', 'הסכמה נשמרה בהצלחה!');
+        initialSchemaStateOnLoad = content;
         
-        setTimeout(() => {
-             closeSchemaEditor();
-             validateAndParseJson();
-        }, 1000);
+        populateSchemaSelects();
+        
+        // Explicitly set values in case key changed
+        schemaEditSelect.value = newKey;
+        if (schemaValidatorSelect.value === oldKey) {
+            schemaValidatorSelect.value = newKey;
+        }
+
+        displaySchemaEditorFeedback('success', 'הסכמה נשמרה בהצלחה!');
+        currentEditingSchemaKey = newKey;
+        isEditingExistingSchema = true;
+
+        validateAndParseJson();
+        return true;
 
     } catch (e) {
         console.error('Failed to save schemas to localStorage:', e);
         displaySchemaEditorFeedback('error', 'שגיאה בשמירה ל-LocalStorage. ייתכן שהאחסון מלא.');
+        return false;
     }
 }
 
@@ -1596,8 +1638,8 @@ treeSearchInput.addEventListener('input', () => { if (treeSearchInput.value.trim
 
 // --- SCHEMA EDITOR EVENT LISTENERS ---
 manageSchemasBtn.addEventListener('click', openSchemaEditor);
-closeModalBtn.addEventListener('click', closeSchemaEditor);
-schemaEditorModal.addEventListener('click', (e) => { if (e.target === schemaEditorModal) closeSchemaEditor(); });
+closeModalBtn.addEventListener('click', attemptToCloseSchemaEditor);
+schemaEditorModal.addEventListener('click', (e) => { if (e.target === schemaEditorModal) attemptToCloseSchemaEditor(); });
 uploadSchemaBtn.addEventListener('click', () => schemaFileInput.click());
 schemaFileInput.addEventListener('change', (event) => {
     const file = event.target.files[0];
@@ -1633,7 +1675,10 @@ schemaFileInput.addEventListener('change', (event) => {
                 
                 schemaToLoad = newSchema;
             } else throw new Error("לא ניתן להמיר את קובץ ה-JSON. יש להעלות אובייקט JSON.");
-            schemaContentTextarea.value = JSON.stringify(schemaToLoad, null, 2);
+
+            const schemaString = JSON.stringify(schemaToLoad, null, 2);
+            schemaContentTextarea.value = schemaString;
+            initialSchemaStateOnLoad = schemaString;
             updateVisualBuilderFromRaw();
             isEditingExistingSchema = false;
             currentEditingSchemaKey = null;
@@ -1647,6 +1692,17 @@ createNewSchemaBtn.addEventListener('click', () => {
     clearSchemaEditorForm();
     schemaEditorFormContainer.hidden = false;
     schemaEditorFooter.hidden = false;
+    const newSchemaTemplate = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "",
+        "description": "",
+        "type": "object",
+        "properties": {},
+    };
+    const newSchemaString = JSON.stringify(newSchemaTemplate, null, 2);
+    schemaContentTextarea.value = newSchemaString;
+    initialSchemaStateOnLoad = newSchemaString;
+    updateVisualBuilderFromRaw();
     schemaTitleInput.focus();
 });
 schemaEditSelect.addEventListener('change', loadSchemaForEditing);
@@ -1783,6 +1839,21 @@ closeAddFieldModalBtn.addEventListener('click', closeAddFieldModal);
 cancelAddFieldBtn.addEventListener('click', closeAddFieldModal);
 addFieldModal.addEventListener('click', (e) => { if (e.target === addFieldModal) closeAddFieldModal(); });
 newFieldNameInput.addEventListener('input', (e) => sanitizeInput(e, /[^a-zA-Z0-9_-]/g));
+
+// --- CONFIRM CLOSE MODAL LISTENERS ---
+confirmCloseXBtn.addEventListener('click', () => {
+    confirmCloseModal.hidden = true;
+});
+confirmDiscardBtn.addEventListener('click', () => {
+    confirmCloseModal.hidden = true;
+    closeSchemaEditor();
+});
+confirmSaveCloseBtn.addEventListener('click', () => {
+    if (saveSchema()) {
+        confirmCloseModal.hidden = true;
+        closeSchemaEditor();
+    }
+});
 
 // --- INITIALIZATION ---
 updateLineNumbers();

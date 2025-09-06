@@ -225,6 +225,22 @@
             </footer>
         </form>
     </div>
+
+    <div id="confirm-close-modal" class="modal-overlay" hidden>
+        <div class="modal-content-small" role="alertdialog" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-description">
+            <header class="modal-header">
+                <h2 id="confirm-modal-title" class="modal-title">שינויים שלא נשמרו</h2>
+                <button id="confirm-close-x-btn" class="close-button" aria-label="Close confirmation">&times;</button>
+            </header>
+            <main class="modal-body-small">
+                <p id="confirm-modal-description">נראה שיש לך שינויים שלא נשמרו. מה תרצה לעשות?</p>
+            </main>
+            <footer class="modal-footer">
+                <button id="confirm-discard-btn" class="action-button delete-button">התעלם מהשינויים</button>
+                <button id="confirm-save-close-btn" class="action-button save-button">שמור וסגור</button>
+            </footer>
+        </div>
+    </div>
     
     <template id="schema-field-template">
         <div class="schema-field-row" data-field-id="">
