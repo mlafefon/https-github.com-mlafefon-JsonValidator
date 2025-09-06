@@ -272,7 +272,7 @@ body {
     gap: 0.5rem;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
-    direction: rtl;
+    direction: ltr;
 }
 
 .tree-search-input {
@@ -388,6 +388,7 @@ body {
     display: flex;
     align-items: center;
     border-radius: 0.25rem; /* For highlighting */
+    transition: background-color 0.15s ease;
 }
 .tree-leaf {
     cursor: pointer;
@@ -397,20 +398,29 @@ body {
     list-style: none;
 }
 .tree-node > details > summary::-webkit-details-marker { display: none; }
-.tree-node > details > summary::after {
-    content: '▸';
-    font-size: 1.5em;
+
+.tree-toggle-icon {
     order: -1;
     margin-right: 0.4rem;
     transition: transform 0.15s ease;
     color: var(--text-color-medium);
+    cursor: pointer;
+    display: inline-block;
+    width: 1em;
+    text-align: center;
+    user-select: none;
 }
-.tree-node > details.empty > summary::after {
+.tree-toggle-icon::before {
+    content: '▸';
+    font-size: 1.5em;
+}
+.tree-node > details.empty .tree-toggle-icon {
     visibility: hidden;
 }
-.tree-node > details[open] > summary::after {
+.tree-node > details[open] > summary .tree-toggle-icon {
     transform: rotate(90deg);
 }
+
 .tree-leaf {
     padding-left: 1.1em;
 }
@@ -422,7 +432,7 @@ body {
     padding-left: 0.2rem;
 }
 .tree-node[data-is-root-node="true"] > details > summary::before { display: none; }
-.tree-node[data-is-root-node="true"] > details > summary::after { display: none; }
+.tree-node[data-is-root-node="true"] > details > summary .tree-toggle-icon { display: none; }
 .tree-node[data-is-root-node="true"] > details > .tree-children {
     padding-left: 1.25rem;
 }
@@ -451,6 +461,10 @@ body {
 .tree-value-number { color: var(--color-teal); }
 .tree-value-boolean { color: var(--color-purple); }
 .tree-value-object { color: var(--text-color-dark); }
+
+.tree-node > details > summary.tree-node-highlighted, .tree-leaf.tree-node-highlighted {
+    background-color: rgba(59, 130, 246, 0.15);
+}
 
 .search-highlight {
     background-color: rgba(245, 158, 11, 0.25);
