@@ -1,5 +1,6 @@
 
 
+
 import * as dom from './dom.js';
 import { highlightLine } from './editor.js';
 import * as constants from './constants.js';
@@ -144,11 +145,44 @@ function createJsonNode(key, value, isRoot, context, path) {
     return nodeElement;
 }
 
+export function toggleAllTreeNodes() {
+    if (!dom.toggleTreeBtn) return;
+    const isCurrentlyCollapsed = dom.toggleTreeBtn.dataset.state === 'collapsed';
+    const detailsElements = dom.treeView.querySelectorAll('details');
+
+    if (detailsElements.length === 0) return;
+
+    detailsElements.forEach(detail => {
+        if (detail.dataset.isRoot) {
+            detail.open = true;
+        } else {
+            detail.open = isCurrentlyCollapsed;
+        }
+    });
+
+    if (isCurrentlyCollapsed) {
+        dom.toggleTreeBtn.dataset.state = 'expanded';
+        dom.expandAllIcon.style.display = 'none';
+        dom.collapseAllIcon.style.display = 'block';
+    } else {
+        dom.toggleTreeBtn.dataset.state = 'collapsed';
+        dom.expandAllIcon.style.display = 'block';
+        dom.collapseAllIcon.style.display = 'none';
+    }
+}
 
 export function buildTreeView(data, context = {}) {
     dom.treeView.innerHTML = '';
     if (dom.treeSearchInput) dom.treeSearchInput.value = '';
     highlightLine(null);
+
+    if (dom.toggleTreeBtn) {
+        dom.toggleTreeBtn.dataset.state = 'collapsed';
+        dom.expandAllIcon.style.display = 'block';
+        dom.collapseAllIcon.style.display = 'none';
+        dom.toggleTreeBtn.disabled = data === null || data === undefined;
+    }
+
     if (data === null || data === undefined) {
         dom.treeView.innerHTML = '<p class="tree-placeholder">הצג תצוגת עץ כאן כאשר ה-JSON תקין.</p>';
         return;

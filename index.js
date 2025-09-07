@@ -1,4 +1,5 @@
 
+
 import * as dom from './dom.js';
 import { state } from './state.js';
 import * as editor from './editor.js';
@@ -92,6 +93,9 @@ dom.treeView.addEventListener('click', (e) => {
         editor.highlightLine(lineNumber);
     }
 });
+if (dom.toggleTreeBtn) {
+    dom.toggleTreeBtn.addEventListener('click', treeView.toggleAllTreeNodes);
+}
 dom.treeSearchBtn.addEventListener('click', treeView.performTreeSearch);
 dom.treeSearchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); treeView.performTreeSearch(); } });
 dom.treeSearchInput.addEventListener('input', () => { if (dom.treeSearchInput.value.trim() === '') treeView.clearSearchHighlights(); });
