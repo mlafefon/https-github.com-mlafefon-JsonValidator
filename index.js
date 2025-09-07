@@ -64,6 +64,17 @@ dom.errorDisplay.addEventListener('click', () => {
     dom.jsonInput.scrollTo({ top: targetScroll, behavior: 'smooth' });
 });
 
+// Schema Feedback Listener
+dom.schemaFeedback.addEventListener('click', (e) => {
+    const target = e.target.closest('[data-line]');
+    if (target) {
+        const lineNumber = parseInt(target.dataset.line, 10);
+        if (!isNaN(lineNumber)) {
+            editor.highlightLine(lineNumber);
+        }
+    }
+});
+
 // Tree View Listeners
 dom.treeView.addEventListener('click', (e) => {
     // 1. Prevent summary from toggling unless the icon is clicked
@@ -184,6 +195,25 @@ dom.titleEl.addEventListener('click', (e) => { if (e.ctrlKey) showEasterEgg(); }
 
 
 // --- INITIALIZATION ---
+async function loadAppVersion() {
+    try {
+        const response = await fetch('./metadata.json');
+        if (!response.ok) {
+            throw new Error('Could not load app metadata');
+        }
+        const metadata = await response.json();
+        if (metadata.version && dom.appVersion) {
+            dom.appVersion.textContent = `גרסה ${metadata.version}`;
+        }
+    } catch (error) {
+        console.error('Error loading app version:', error);
+        if (dom.appVersion) {
+            dom.appVersion.hidden = true;
+        }
+    }
+}
+
+loadAppVersion();
 editor.updateLineNumbers();
 editor.validateAndParseJson();
 schemaEditor.initializeSchemaValidator();

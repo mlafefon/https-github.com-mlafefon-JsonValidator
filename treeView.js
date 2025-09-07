@@ -1,6 +1,4 @@
 
-
-
 import * as dom from './dom.js';
 import { highlightLine } from './editor.js';
 import * as constants from './constants.js';
@@ -88,7 +86,7 @@ function createJsonNode(key, value, isRoot, context, path) {
             let i = 0;
             for (const [childKey, childValue] of entries) {
                 const childPath = [...path, Array.isArray(value) ? parseInt(childKey) : childKey];
-                const childNode = createJsonNode(childKey, childValue, false, { ...context, isParentArray: Array.isArray(value) }, childPath);
+                const childNode = createJsonNode(childKey, childValue, false, { ...context, parentLine: line, isParentArray: Array.isArray(value) }, childPath);
                 
                 if (i === entries.length - 1) {
                     childNode.classList.add('is-last');
@@ -126,7 +124,8 @@ function createJsonNode(key, value, isRoot, context, path) {
     } else {
         const leaf = document.createElement('div');
         leaf.className = 'tree-leaf';
-        if(line) leaf.dataset.line = line;
+        const lineToUse = line || context.parentLine;
+        if(lineToUse) leaf.dataset.line = lineToUse;
 
         const keySpan = document.createElement('span');
         keySpan.className = 'tree-key';

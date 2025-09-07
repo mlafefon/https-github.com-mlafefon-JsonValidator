@@ -185,6 +185,11 @@ function activateInlineEdit(displayElement, propertyToUpdate) {
     const fieldRow = displayElement.closest('.schema-field-row');
     if (!fieldRow || fieldRow.querySelector('.inline-edit-input')) return;
 
+    // Find both display elements to manage their visibility
+    const nameDisplay = fieldRow.querySelector('.field-name-display');
+    const descriptionDisplay = fieldRow.querySelector('.field-description-display');
+    const siblingElement = (displayElement === nameDisplay) ? descriptionDisplay : nameDisplay;
+
     const isPlaceholder = displayElement.classList.contains('is-placeholder');
     const originalValue = isPlaceholder ? '' : displayElement.textContent;
     const input = document.createElement('input');
@@ -192,7 +197,15 @@ function activateInlineEdit(displayElement, propertyToUpdate) {
     input.className = 'inline-edit-input';
     input.value = originalValue;
     
+    // Make the input take up maximum available space
+    input.style.flexGrow = '1';
+    input.style.width = '100%';
+
     displayElement.hidden = true;
+    if (siblingElement) {
+        siblingElement.hidden = true; // Hide the other element to give full width
+    }
+
     displayElement.after(input);
     input.focus();
     input.select();
@@ -245,6 +258,9 @@ function activateInlineEdit(displayElement, propertyToUpdate) {
         
         input.remove();
         displayElement.hidden = false;
+        if (siblingElement) {
+            siblingElement.hidden = false; // Restore visibility of the other element
+        }
 
         if (saveChanges && isValid && originalValue !== newValue) {
             triggerUIUpdate();

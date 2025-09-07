@@ -1,3 +1,4 @@
+
 import * as dom from './dom.js';
 import { state } from './state.js';
 import * as constants from './constants.js';
@@ -35,6 +36,44 @@ function createLocationAwareParser() {
 }
 
 const locationParser = createLocationAwareParser();
+
+function buildPathToLineMap(parsedObjectWithUids, locationsMap) {
+    const pathToLineMap = new Map();
+    pathToLineMap.set('root', 1);
+
+    function traverse(obj, currentPath) {
+        if (Array.isArray(obj)) {
+            obj.forEach((item, index) => {
+                const itemPath = `${currentPath}/${index}`;
+                // Inherit parent's line number for array items
+                const parentLine = pathToLineMap.get(currentPath);
+                if (parentLine) {
+                    pathToLineMap.set(itemPath, parentLine);
+                }
+                 if (typeof item === 'object' && item !== null) {
+                    traverse(item, itemPath);
+                }
+            });
+        } else if (typeof obj === 'object' && obj !== null) {
+            for (const keyWithUid in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, keyWithUid)) {
+                    const locationInfo = locationsMap.get(keyWithUid);
+                    if (locationInfo) {
+                        const itemPath = `${currentPath}/${locationInfo.originalKey}`;
+                        pathToLineMap.set(itemPath, locationInfo.line);
+
+                        if (typeof obj[keyWithUid] === 'object' && obj[keyWithUid] !== null) {
+                            traverse(obj[keyWithUid], itemPath);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    traverse(parsedObjectWithUids, 'root');
+    return pathToLineMap;
+}
 
 // --- FUNCTIONS ---
 
@@ -180,12 +219,12 @@ function getLineAndColumnFromPosition(text, position) {
 function validateJsonAgainstSchema(jsonData, schema) {
     const errors = [];
 
-    function pushError(baseMessage, currentSchema) {
+    function pushError(baseMessage, path, currentSchema) {
         let finalMessage = baseMessage;
         if (currentSchema && currentSchema.description) {
             finalMessage += ` (תיאור: ${currentSchema.description})`;
         }
-        errors.push(finalMessage);
+        errors.push({ message: finalMessage, path });
     }
 
     function validate(instance, schema, path) {
@@ -205,51 +244,18 @@ function validateJsonAgainstSchema(jsonData, schema) {
             }
             
             if (!typeIsValid) {
-                pushError(`שגיאת טיפוס בנתיב '${path}': צפוי '${schemaType}', התקבל '${instanceType}'.`, schema);
+                pushError(`שגיאת טיפוס בנתיב '${path}': צפוי '${schemaType}', התקבל '${instanceType}'.`, path, schema);
                 return;
             }
         }
         
-        if (instanceType === 'string') {
-            if (schema.minLength !== undefined && instance.length < schema.minLength) {
-                pushError(`אורך קצר מדי בנתיב '${path}': האורך הוא ${instance.length}, אך המינימוм הנדרש הוא ${schema.minLength}.`, schema);
-            }
-            if (schema.maxLength !== undefined && instance.length > schema.maxLength) {
-                pushError(`אורך ארוך מדי בנתיב '${path}': האורך הוא ${instance.length}, אך המקסימום המותר הוא ${schema.maxLength}.`, schema);
-            }
-            if (schema.pattern) {
-                try {
-                    const regex = new RegExp(schema.pattern);
-                    if (!regex.test(instance)) {
-                        pushError(`ערך לא תואם לתבנית בנתיב '${path}': הערך '${instance}' אינו תואם לתבנית '${schema.pattern}'.`, schema);
-                    }
-                } catch (e) {
-                    console.error(`Invalid regex pattern in schema at path '${path}': ${schema.pattern}`);
-                }
-            }
-        }
-
-        if (typeof instance === 'number') {
-            if (schema.minimum !== undefined && instance < schema.minimum) {
-                pushError(`ערך נמוך מדי בנתיב '${path}': הערך הוא ${instance}, אך המינימום המותר הוא ${schema.minimum}.`, schema);
-            }
-            if (schema.maximum !== undefined && instance > schema.maximum) {
-                pushError(`ערך גבוה מדי בנתיב '${path}': הערך הוא ${instance}, אך המקסימום המותר הוא ${schema.maximum}.`, schema);
-            }
-        }
-
-        if (schema.enum) {
-            if (Array.isArray(schema.enum) && !schema.enum.includes(instance)) {
-                pushError(`ערך לא חוקי בנתיב '${path}': הערך '${instance}' אינו אחד מהערכים המותרים (${schema.enum.join(', ')}).`, schema);
-            }
-        }
-
+        // --- HANDLE CONTAINERS FIRST ---
         if (schema.type === 'object' && instanceType === 'object') {
             if (schema.required) {
                 for (const key of schema.required) {
                     if (instance[key] === undefined) {
                         const propertySchema = schema.properties ? schema.properties[key] : undefined;
-                        pushError(`מאפיין חובה חסר בנתיב '${path}': '${key}'.`, propertySchema);
+                        pushError(`מאפיין חובה חסר בנתיב '${path}': '${key}'.`, path, propertySchema);
                     }
                 }
             }
@@ -260,13 +266,53 @@ function validateJsonAgainstSchema(jsonData, schema) {
                     }
                 }
             }
+            // All object validations are done for this level, so we can stop.
+            return;
         }
 
         if (schema.type === 'array' && instanceType === 'array') {
             if (schema.items) {
                 for (let i = 0; i < instance.length; i++) {
-                    validate(instance[i], schema.items, `${path}[${i}]`);
+                    validate(instance[i], schema.items, `${path}/${i}`);
                 }
+            }
+             // All array validations are done for this level, so we can stop.
+            return;
+        }
+
+
+        // --- HANDLE PRIMITIVES (if not a container) ---
+        if (instanceType === 'string') {
+            if (schema.minLength !== undefined && instance.length < schema.minLength) {
+                pushError(`אורך קצר מדי בנתיב '${path}': האורך הוא ${instance.length}, אך המינימום הנדרש הוא ${schema.minLength}.`, path, schema);
+            }
+            if (schema.maxLength !== undefined && instance.length > schema.maxLength) {
+                pushError(`אורך ארוך מדי בנתיב '${path}': האורך הוא ${instance.length}, אך המקסימום המותר הוא ${schema.maxLength}.`, path, schema);
+            }
+            if (schema.pattern) {
+                try {
+                    const regex = new RegExp(schema.pattern);
+                    if (!regex.test(instance)) {
+                        pushError(`ערך לא תואם לתבנית בנתיב '${path}': הערך '${instance}' אינו תואם לתבנית '${schema.pattern}'.`, path, schema);
+                    }
+                } catch (e) {
+                    console.error(`Invalid regex pattern in schema at path '${path}': ${schema.pattern}`);
+                }
+            }
+        }
+
+        if (typeof instance === 'number') {
+            if (schema.minimum !== undefined && instance < schema.minimum) {
+                pushError(`ערך נמוך מדי בנתיב '${path}': הערך הוא ${instance}, אך המינימום המותר הוא ${schema.minimum}.`, path, schema);
+            }
+            if (schema.maximum !== undefined && instance > schema.maximum) {
+                pushError(`ערך גבוה מדי בנתיב '${path}': הערך הוא ${instance}, אך המקסימום המותר הוא ${schema.maximum}.`, path, schema);
+            }
+        }
+
+        if (schema.enum) {
+            if (Array.isArray(schema.enum) && !schema.enum.includes(instance)) {
+                pushError(`ערך לא חוקי בנתיב '${path}': הערך '${instance}' אינו אחד מהערכים המותרים (${schema.enum.join(', ')}).`, path, schema);
             }
         }
     }
@@ -278,6 +324,7 @@ function validateJsonAgainstSchema(jsonData, schema) {
 function displaySchemaValidationResults(errors, objectCount = 1) {
     dom.schemaFeedback.hidden = true;
     dom.schemaFeedback.className = 'feedback-display';
+    dom.schemaFeedbackMessageEl.innerHTML = '';
 
     if (!errors) return;
 
@@ -290,10 +337,20 @@ function displaySchemaValidationResults(errors, objectCount = 1) {
     } else {
         dom.schemaFeedback.classList.add('feedback-error');
         dom.schemaFeedbackIconEl.innerHTML = constants.ICONS.ERROR;
+        
         const errorHeader = `נמצאו ${errors.length} שגיאות אימות סכמה:`;
-        const errorList = errors.slice(0, 10).map(e => `- ${e}`).join('\n');
-        const extraErrors = errors.length > 10 ? `\n...ועוד ${errors.length - 10} שגיאות.` : '';
-        dom.schemaFeedbackMessageEl.textContent = `${errorHeader}\n${errorList}${extraErrors}`;
+        
+        const errorListHtml = errors.slice(0, 10).map(error => {
+            const line = state.pathToLineMap ? state.pathToLineMap.get(error.path) : null;
+            const cssClass = line ? 'schema-error-line clickable' : 'schema-error-line';
+            const dataAttr = line ? `data-line="${line}"` : '';
+            const sanitizedMessage = error.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            return `<div class="${cssClass}" ${dataAttr}>- ${sanitizedMessage}</div>`;
+        }).join('');
+        
+        const extraErrors = errors.length > 10 ? `<div class="schema-error-line">...ועוד ${errors.length - 10} שגיאות.</div>` : '';
+        
+        dom.schemaFeedbackMessageEl.innerHTML = `<div>${errorHeader}</div>${errorListHtml}${extraErrors}`;
         dom.schemaFeedback.hidden = false;
     }
 }
@@ -305,6 +362,7 @@ export function validateAndParseJson(options = {}) {
     dom.errorDisplay.hidden = true;
     dom.errorDisplay.classList.remove('clickable');
     state.currentErrorLineNumber = null;
+    state.pathToLineMap = null;
     dom.schemaFeedback.hidden = true;
     highlightLine(null);
     highlightErrorLine(null);
@@ -342,7 +400,7 @@ export function validateAndParseJson(options = {}) {
             const errors = validateJsonAgainstSchema(item, schema);
             if (errors.length > 0) {
                 if (dataToValidate.length > 1) {
-                    allErrors.push(...errors.map(e => `[אובייקט ${i + 1}] ${e}`));
+                    allErrors.push(...errors.map(e => ({...e, message: `[אובייקט ${i + 1}] ${e.message}`})));
                 } else {
                     allErrors.push(...errors);
                 }
@@ -353,6 +411,7 @@ export function validateAndParseJson(options = {}) {
 
     try {
         const { parsed, locationsMap } = locationParser.parse(text);
+        state.pathToLineMap = buildPathToLineMap(parsed, locationsMap);
         const plainParsed = JSON.parse(text);
         updateStatusBar(constants.ValidationStatus.SUCCESS, 'JSON תקין!');
         buildTreeView(parsed, { locationsMap, expansionState });
@@ -383,6 +442,7 @@ export function validateAndParseJson(options = {}) {
         }
 
         if (isAllLinesValid && parsedLines.length > 0) {
+            state.pathToLineMap = new Map();
             updateStatusBar(constants.ValidationStatus.SUCCESS, 'זוהה פורמט JSON Lines. כל השורות תקינות!');
             buildTreeView(parsedLines, { lineMap, expansionState });
             runValidation(parsedLines);

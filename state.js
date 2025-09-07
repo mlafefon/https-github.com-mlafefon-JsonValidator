@@ -10,4 +10,5 @@ export const state = {
     currentEditingSchemaKey: null,
     initialSchemaStateOnLoad: '',
     currentParentForNewField: null,
+    pathToLineMap: null,
 };

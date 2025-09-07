@@ -7,6 +7,7 @@ export const treeView = document.getElementById('tree-view');
 export const statusBar = document.getElementById('status-bar');
 export const statusIcon = document.getElementById('status-icon');
 export const statusMessage = document.getElementById('status-message');
+export const appVersion = document.getElementById('app-version');
 export const errorDisplay = document.getElementById('error-display');
 export const errorIconEl = document.getElementById('error-icon');
 export const errorMessageEl = document.getElementById('error-message');
