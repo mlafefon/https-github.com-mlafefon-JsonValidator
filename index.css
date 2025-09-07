@@ -357,6 +357,10 @@ body {
     text-decoration: underline;
 }
 
+.schema-error-type-missingProperty {
+    color: var(--accent-orange);
+}
+
 /* --- Tree Pane --- */
 .pane-title {
     font-size: 1.125rem;
@@ -436,6 +440,34 @@ body {
 .tree-value-object { color: var(--text-color-dark); }
 .tree-node > details > summary.tree-node-highlighted, .tree-leaf.tree-node-highlighted { background-color: rgba(56, 189, 248, 0.15); }
 .search-highlight { background-color: rgba(252, 211, 77, 0.2); outline: 1px solid var(--accent-amber); }
+
+.tree-path-display {
+    padding: var(--space-sm) var(--space-md);
+    background-color: var(--bg-color-deep);
+    border-top: 1px solid var(--border-color);
+    font-family: var(--font-family-mono);
+    font-size: 0.8rem;
+    color: var(--text-color-medium);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.2s ease;
+    text-align: left;
+    direction: ltr;
+}
+
+.tree-path-display:hover {
+    color: var(--text-color-light);
+    background-color: var(--bg-color-main);
+}
+
+.tree-path-display.copied {
+    background-color: var(--accent-green);
+    color: var(--bg-color-deep);
+    font-weight: 500;
+}
 
 /* --- Footer & Status Bar --- */
 .app-footer {

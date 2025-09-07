@@ -95,6 +95,12 @@ dom.treeView.addEventListener('click', (e) => {
     if (targetToHighlight) {
         // Add highlight to the current target
         targetToHighlight.classList.add('tree-node-highlighted');
+        
+        // Display JSON Path
+        if (targetToHighlight.dataset.jsonPath) {
+            dom.treePathDisplay.textContent = targetToHighlight.dataset.jsonPath;
+            dom.treePathDisplay.hidden = false;
+        }
     }
 
     // 3. Handle editor line highlighting (existing functionality)
@@ -110,6 +116,28 @@ if (dom.toggleTreeBtn) {
 dom.treeSearchBtn.addEventListener('click', treeView.performTreeSearch);
 dom.treeSearchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); treeView.performTreeSearch(); } });
 dom.treeSearchInput.addEventListener('input', () => { if (dom.treeSearchInput.value.trim() === '') treeView.clearSearchHighlights(); });
+
+dom.treePathDisplay.addEventListener('click', () => {
+    const path = dom.treePathDisplay.textContent;
+    if (!path || dom.treePathDisplay.classList.contains('copied')) return;
+
+    navigator.clipboard.writeText(path).then(() => {
+        const originalPath = dom.treePathDisplay.textContent;
+        dom.treePathDisplay.textContent = '✓ Copied to clipboard!';
+        dom.treePathDisplay.classList.add('copied');
+        setTimeout(() => {
+            dom.treePathDisplay.textContent = originalPath;
+            dom.treePathDisplay.classList.remove('copied');
+        }, 1500);
+    }).catch(err => {
+        console.error('Failed to copy path: ', err);
+        const originalPath = dom.treePathDisplay.textContent;
+        dom.treePathDisplay.textContent = 'Copy failed!';
+        setTimeout(() => {
+            dom.treePathDisplay.textContent = originalPath;
+        }, 1500);
+    });
+});
 
 
 // --- SCHEMA EDITOR EVENT LISTENERS ---

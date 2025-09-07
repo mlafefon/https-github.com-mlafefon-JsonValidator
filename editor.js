@@ -1,4 +1,5 @@
 
+
 import * as dom from './dom.js';
 import { state } from './state.js';
 import * as constants from './constants.js';
@@ -163,28 +164,50 @@ export function handleScroll() {
 export function beautifyJson() {
     const text = dom.jsonInput.value;
     if (!text.trim()) return;
+    const expansionState = getExpansionState();
+
     try {
-        const expansionState = getExpansionState();
+        // First, try to parse as a single JSON object
         const parsed = JSON.parse(text);
         dom.jsonInput.value = JSON.stringify(parsed, null, 2);
         updateLineNumbers();
         validateAndParseJson({ expansionState });
+        return;
     } catch (e) {
-        // Can't beautify invalid JSON, do nothing.
+        // Not a single valid JSON, try parsing as multi-JSON
+    }
+
+    const multiJsonResult = parseMultiJson(text);
+    if (multiJsonResult.success) {
+        const beautifiedObjects = multiJsonResult.data.map(obj => JSON.stringify(obj, null, 2));
+        dom.jsonInput.value = beautifiedObjects.join('\n\n');
+        updateLineNumbers();
+        validateAndParseJson({ expansionState });
     }
 }
 
 export function minifyJson() {
     const text = dom.jsonInput.value;
     if (!text.trim()) return;
+    const expansionState = getExpansionState();
+
     try {
-        const expansionState = getExpansionState();
+        // First, try to parse as a single JSON object
         const parsed = JSON.parse(text);
         dom.jsonInput.value = JSON.stringify(parsed);
         updateLineNumbers();
         validateAndParseJson({ expansionState });
+        return;
     } catch (e) {
-        // Can't minify invalid JSON, do nothing.
+        // Not a single valid JSON, try parsing as multi-JSON
+    }
+
+    const multiJsonResult = parseMultiJson(text);
+    if (multiJsonResult.success) {
+        const minifiedObjects = multiJsonResult.data.map(obj => JSON.stringify(obj));
+        dom.jsonInput.value = minifiedObjects.join('\n');
+        updateLineNumbers();
+        validateAndParseJson({ expansionState });
     }
 }
 
@@ -219,12 +242,12 @@ function getLineAndColumnFromPosition(text, position) {
 function validateJsonAgainstSchema(jsonData, schema) {
     const errors = [];
 
-    function pushError(baseMessage, path, currentSchema) {
+    function pushError(baseMessage, path, currentSchema, type = 'invalidValue') {
         let finalMessage = baseMessage;
         if (currentSchema && currentSchema.description) {
             finalMessage += ` (תיאור: ${currentSchema.description})`;
         }
-        errors.push({ message: finalMessage, path });
+        errors.push({ message: finalMessage, path, type });
     }
 
     function validate(instance, schema, path) {
@@ -255,7 +278,7 @@ function validateJsonAgainstSchema(jsonData, schema) {
                 for (const key of schema.required) {
                     if (instance[key] === undefined) {
                         const propertySchema = schema.properties ? schema.properties[key] : undefined;
-                        pushError(`מאפיין חובה חסר בנתיב '${path}': '${key}'.`, path, propertySchema);
+                        pushError(`מאפיין חובה חסר בנתיב '${path}': '${key}'.`, path, propertySchema, 'missingProperty');
                     }
                 }
             }
@@ -343,9 +366,10 @@ function displaySchemaValidationResults(errors, objectCount = 1) {
         const errorListHtml = errors.slice(0, 10).map(error => {
             const line = state.pathToLineMap ? state.pathToLineMap.get(error.path) : null;
             const cssClass = line ? 'schema-error-line clickable' : 'schema-error-line';
+            const typeClass = error.type ? `schema-error-type-${error.type}` : '';
             const dataAttr = line ? `data-line="${line}"` : '';
             const sanitizedMessage = error.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            return `<div class="${cssClass}" ${dataAttr}>- ${sanitizedMessage}</div>`;
+            return `<div class="${cssClass} ${typeClass}" ${dataAttr}>- ${sanitizedMessage}</div>`;
         }).join('');
         
         const extraErrors = errors.length > 10 ? `<div class="schema-error-line">...ועוד ${errors.length - 10} שגיאות.</div>` : '';
@@ -354,6 +378,101 @@ function displaySchemaValidationResults(errors, objectCount = 1) {
         dom.schemaFeedback.hidden = false;
     }
 }
+
+/**
+ * Parses a string that may contain multiple concatenated JSON objects or arrays.
+ * Handles both minified (JSON Lines) and pretty-printed formats.
+ * @param {string} text The input string to parse.
+ * @returns {{success: boolean, data?: any[], lineMap?: number[]}}
+ */
+function parseMultiJson(text) {
+    const objects = [];
+    const lineMap = [];
+    let remainingText = text;
+    let totalConsumedLength = 0;
+
+    while (remainingText.trim().length > 0) {
+        const preTrimLength = remainingText.length;
+        remainingText = remainingText.trimStart();
+        const trimLength = preTrimLength - remainingText.length;
+        totalConsumedLength += trimLength;
+        
+        if (remainingText.length === 0) break;
+
+        const firstChar = remainingText[0];
+        if (firstChar !== '{' && firstChar !== '[') {
+            return { success: false }; // Invalid start or trailing chars
+        }
+        
+        const stack = [];
+        let inString = false;
+        let isEscaped = false;
+        let endIndex = -1;
+        let started = false;
+
+        for (let i = 0; i < remainingText.length; i++) {
+            const char = remainingText[i];
+            
+            if (isEscaped) {
+                isEscaped = false;
+                continue;
+            }
+            if (char === '\\') {
+                isEscaped = true;
+                continue;
+            }
+            if (char === '"') {
+                inString = !inString;
+            }
+
+            if (inString) continue;
+
+            if (char === '{' || char === '[') {
+                stack.push(char);
+                started = true;
+            } else if (char === '}') {
+                if (stack.length === 0 || stack[stack.length - 1] !== '{') return { success: false }; // Mismatched
+                stack.pop();
+            } else if (char === ']') {
+                if (stack.length === 0 || stack[stack.length - 1] !== '[') return { success: false }; // Mismatched
+                stack.pop();
+            }
+
+            if (started && stack.length === 0) {
+                endIndex = i;
+                break;
+            }
+        }
+
+        if (endIndex === -1) {
+            return { success: false }; // Unclosed object
+        }
+
+        const jsonCandidate = remainingText.substring(0, endIndex + 1);
+        try {
+            const originalTextBeforeThisObject = text.substring(0, totalConsumedLength);
+            const startLineOfThisObject = originalTextBeforeThisObject.split('\n').length;
+            lineMap.push(startLineOfThisObject);
+
+            objects.push(JSON.parse(jsonCandidate));
+            
+            totalConsumedLength += jsonCandidate.length;
+            remainingText = remainingText.substring(jsonCandidate.length);
+        } catch (e) {
+            return { success: false }; // A segment is not valid JSON
+        }
+    }
+    
+    // Succeed if we found at least one object and consumed the whole string
+    if (objects.length > 0 && remainingText.trim().length === 0) { 
+        // If only one object was found, it should be handled by the single JSON parser.
+        // This function is for multi-json, so we can return true for 1 or more.
+        return { success: true, data: objects, lineMap };
+    }
+    
+    return { success: false };
+}
+
 
 export function validateAndParseJson(options = {}) {
     const { expansionState } = options;
@@ -413,41 +532,29 @@ export function validateAndParseJson(options = {}) {
         const { parsed, locationsMap } = locationParser.parse(text);
         state.pathToLineMap = buildPathToLineMap(parsed, locationsMap);
         const plainParsed = JSON.parse(text);
+
+        const multiJsonCheck = parseMultiJson(text);
+        if (multiJsonCheck.success && multiJsonCheck.data.length > 1) {
+             // It's technically valid single JSON (e.g. `[1][2]`), but it's really multi-json.
+             // Prioritize multi-json handling.
+             throw new Error("Ambiguous single/multi JSON, treating as multi-JSON.");
+        }
+
         updateStatusBar(constants.ValidationStatus.SUCCESS, 'JSON תקין!');
         buildTreeView(parsed, { locationsMap, expansionState });
         runValidation(plainParsed);
         return;
     } catch (e) {
-        // Not a valid single JSON, try JSON Lines
+        // Not a valid single JSON, try multi-JSON/JSON lines
     }
 
-    const lines = text.trim().split('\n');
-    if (lines.length > 1) {
-        const parsedLines = [];
-        const lineMap = [];
-        let isAllLinesValid = true;
-        let lineCursor = 0;
-
-        for(let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            if (line.trim() === '') continue;
-            try {
-                parsedLines.push(JSON.parse(line));
-                lineMap[lineCursor] = i + 1; // map parsed index to original line number
-                lineCursor++;
-            } catch {
-                isAllLinesValid = false;
-                break;
-            }
-        }
-
-        if (isAllLinesValid && parsedLines.length > 0) {
-            state.pathToLineMap = new Map();
-            updateStatusBar(constants.ValidationStatus.SUCCESS, 'זוהה פורמט JSON Lines. כל השורות תקינות!');
-            buildTreeView(parsedLines, { lineMap, expansionState });
-            runValidation(parsedLines);
-            return;
-        }
+    const multiJsonResult = parseMultiJson(text);
+    if (multiJsonResult.success) {
+        state.pathToLineMap = new Map();
+        updateStatusBar(constants.ValidationStatus.SUCCESS, 'זוהה פורמט JSON Lines / Multi-JSON. כל האובייקטים תקינים!');
+        buildTreeView(multiJsonResult.data, { lineMap: multiJsonResult.lineMap, expansionState });
+        runValidation(multiJsonResult.data);
+        return;
     }
 
     try {

@@ -15,29 +15,29 @@
         <main class="main-content">
             <div class="editor-pane">
                  <div class="editor-toolbar">
-                    <button id="manage-schemas-btn" class="action-button manage-button" title="נהל סכמות" aria-label="Manage Schemas">
+                    <button id="manage-schemas-btn" class="action-button manage-button" title="‫נהל סכמות" aria-label="Manage Schemas">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.25rem; height: 1.25rem;">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
                         </svg>
                         <span>נהל סכמות</span>
                     </button>
                     <div class="toolbar-main-actions">
-                        <select id="schema-validator-select" class="action-button schema-select" title="בחר סוג אימות" aria-label="Select schema validation type">
+                        <select id="schema-validator-select" class="action-button schema-select" title="‫בחר סוג אימות" aria-label="Select schema validation type">
                             <option value="">בחר סוג</option>
                         </select>
-                        <button id="load-file-btn" class="action-button load-button" title="טען קובץ JSON מהמחשב" aria-label="Load JSON file">
+                        <button id="load-file-btn" class="action-button load-button" title="‫טען קובץ JSON מהמחשב" aria-label="Load JSON file">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.25rem; height: 1.25rem;">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"></path>
                             </svg>
                             <span>טען קובץ</span>
                         </button>
-                        <button id="minify-btn" class="action-button minify-button" title="כווץ את ה-JSON לשורה אחת" aria-label="Minify JSON">
+                        <button id="minify-btn" class="action-button minify-button" title="‫כווץ את ה-JSON לשורה אחת" aria-label="Minify JSON">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.25rem; height: 1.25rem;">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5M15 15l5.25 5.25" />
                             </svg>
                             <span>כווץ</span>
                         </button>
-                        <button id="beautify-btn" class="action-button beautify-button" title="יפה לי את ה-JSON" aria-label="Format JSON">
+                        <button id="beautify-btn" class="action-button beautify-button" title="‫יפה לי את ה-JSON" aria-label="Format JSON">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6" style="width:1.25rem; height:1.25rem;">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z"></path>
                             </svg>
@@ -62,7 +62,7 @@
             <div class="tree-pane">
                 <h2 class="pane-title">תצוגת עץ</h2>
                 <div class="tree-search-container">
-                    <button id="toggle-tree-btn" class="action-button tree-toggle-all-button" title="הרחב/כווץ הכל" aria-label="Expand/Collapse All Tree Nodes" data-state="collapsed">
+                    <button id="toggle-tree-btn" class="action-button tree-toggle-all-button" title="‫הרחב/כווץ הכל" aria-label="Expand/Collapse All Tree Nodes" data-state="collapsed">
                         <svg id="expand-all-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.125rem; height: 1.125rem;">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"></path>
                         </svg>
@@ -76,6 +76,7 @@
                 <div id="tree-view" class="tree-view-container">
                     <p class="tree-placeholder">הצג תצוגת עץ כאן כאשר ה-JSON תקין.</p>
                 </div>
+                <div id="tree-path-display" class="tree-path-display" title="Click to copy path" hidden></div>
             </div>
         </main>
         <footer class="app-footer">
@@ -100,16 +101,16 @@
             </header>
             <main class="modal-body">
                 <div class="schema-editor-controls">
-                    <select id="schema-edit-select" class="action-button schema-select" aria-label="Select schema to edit" title="בחר סכמה קיימת כדי לערוך אותה.">
+                    <select id="schema-edit-select" class="action-button schema-select" aria-label="Select schema to edit" title="‫בחר סכמה קיימת כדי לערוך אותה.">
                         <option value="">בחר סכמה לעריכה...</option>
                     </select>
-                    <button id="create-new-schema-btn" class="action-button create-new-button" title="נקה את הטופס כדי ליצור סכמה חדשה מאפס.">
+                    <button id="create-new-schema-btn" class="action-button create-new-button" title="‫נקה את הטופס כדי ליצור סכמה חדשה מאפס.">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.25rem; height: 1.25rem;">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5v6m3-3H9m4.06-7.19-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
                         </svg>
                         <span>צור חדש</span>
                     </button>
-                    <button id="upload-schema-btn" class="action-button upload-button" title="טען סכמת JSON מהמחשב">
+                    <button id="upload-schema-btn" class="action-button upload-button" title="‫טען סכמת JSON מהמחשב">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.25rem; height: 1.25rem;">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"></path>
                         </svg>
@@ -120,11 +121,11 @@
                     <div class="schema-form-grid">
                         <div class="form-group">
                             <label for="schema-title-input">כותרת הסכמה (Display Title)</label>
-                            <input type="text" id="schema-title-input" class="schema-form-input" placeholder="e.g., My New Schema" title="יש להשתמש באותיות באנגלית, מספרים ורווחים בלבד." dir="ltr" pattern="[a-zA-Z0-9\s]*">
+                            <input type="text" id="schema-title-input" class="schema-form-input" placeholder="e.g., My New Schema" title="‫יש להשתמש באותיות באנגלית, מספרים ורווחים בלבד." dir="ltr" pattern="[a-zA-Z0-9\s]*">
                         </div>
                         <div class="form-group">
                             <label for="schema-description-input">תיאור</label>
-                            <input type="text" id="schema-description-input" class="schema-form-input" placeholder="לדוגמה: סכמה לבדיקת לוגים אפליקטיביים" title="תיאור קצר של מטרת הסכמה.">
+                            <input type="text" id="schema-description-input" class="schema-form-input" placeholder="לדוגמה: סכמה לבדיקת לוגים אפליקטיביים" title="‫תיאור קצר של מטרת הסכמה.">
                         </div>
                     </div>
 
@@ -133,7 +134,7 @@
                             <div class="builder-header">
                                 <h3 class="builder-title">תוכן הסכמה (JSON Schema)</h3>
                             </div>
-                            <textarea id="schema-content-textarea" class="json-textarea schema-editor-textarea" spellcheck="false" dir="ltr" title="קוד המקור של הסכמה בפורמט JSON Schema."></textarea>
+                            <textarea id="schema-content-textarea" class="json-textarea schema-editor-textarea" spellcheck="false" dir="ltr" title="‫קוד המקור של הסכמה בפורמט JSON Schema."></textarea>
                         </div>
                         <div class="visual-builder-column">
                             <div class="builder-header">
@@ -165,13 +166,13 @@
             </main>
             <footer id="schema-editor-footer" class="modal-footer" hidden>
                 <div style="flex-grow: 1;"></div>
-                <button id="download-schema-btn" class="action-button download-button" title="שמור את הסכמה הנוכחית כקובץ JSON.">
+                <button id="download-schema-btn" class="action-button download-button" title="‫שמור את הסכמה הנוכחית כקובץ JSON.">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.25rem; height: 1.25rem;">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                     </svg>
                     <span>שמור סכמה כקובץ</span>
                 </button>
-                <button id="save-schema-btn" class="action-button save-button" title="שומר את השינויים בסשן הנכחי בלבד.">שמור שינויים</button>
+                <button id="save-schema-btn" class="action-button save-button" title="‫שומר את השינויים בסשן הנכחי בלבד.">שמור שינויים</button>
             </footer>
              <input type="file" id="schema-file-input" accept=".json" hidden />
         </div>
@@ -197,27 +198,27 @@
                      <div class="field-type-selector">
                         <label>
                             <input type="radio" name="fieldType" value="string" checked>
-                            <div class="field-type-option" data-type="string" title="שדה טקסטואלי. לדוגמה: 'שלום עולם'.">Text</div>
+                            <div class="field-type-option" data-type="string" title="‫שדה טקסטואלי. לדוגמה: 'שלום עולם'.">Text</div>
                         </label>
                         <label>
                             <input type="radio" name="fieldType" value="number">
-                            <div class="field-type-option" data-type="number" title="שדה מספרי שיכול להכיל מספרים שלמים או עשרוניים. לדוגמה: 10.5.">Number</div>
+                            <div class="field-type-option" data-type="number" title="‫שדה מספרי שיכול להכיל מספרים שלמים או עשרוניים. לדוגמה: 10.5.">Number</div>
                         </label>
                         <label>
                             <input type="radio" name="fieldType" value="integer">
-                            <div class="field-type-option" data-type="integer" title="שדה מספרי שיכול להכיל מספרים שלמים בלבד (ללא נקודה עשרונית). לדוגמה: 2024.">Integer</div>
+                            <div class="field-type-option" data-type="integer" title="‫שדה מספרי שיכול להכיל מספרים שלמים בלבד (ללא נקודה עשרונית). לדוגמה: 2024.">Integer</div>
                         </label>
                         <label>
                             <input type="radio" name="fieldType" value="boolean">
-                            <div class="field-type-option" data-type="boolean" title="שדה בוליאני המייצג אמת או שקר (true/false).">Yes/No</div>
+                            <div class="field-type-option" data-type="boolean" title="‫שדה בוליאני המייצג אמת או שקר (true/false).">Yes/No</div>
                         </label>
                          <label>
                             <input type="radio" name="fieldType" value="object">
-                            <div class="field-type-option" data-type="object" title="אובייקט המכיל שדות נוספים (מבנה מקונן).">Object</div>
+                            <div class="field-type-option" data-type="object" title="‫אובייקט המכיל שדות נוספים (מבנה מקונן).">Object</div>
                         </label>
                          <label>
                             <input type="radio" name="fieldType" value="array">
-                            <div class="field-type-option" data-type="array" title="מערך או רשימה של פריטים מאותו סוג.">List</div>
+                            <div class="field-type-option" data-type="array" title="‫מערך או רשימה של פריטים מאותו סוג.">List</div>
                         </label>
                      </div>
                 </div>
@@ -261,8 +262,8 @@
                         </svg>
                     </span>
                     <div class="field-main">
-                        <span class="field-name-display" title="לחץ כדי לערוך שם"></span>
-                        <span class="field-description-display" title="לחץ כדי לערוך תיאור"></span>
+                        <span class="field-name-display" title="‫לחץ כדי לערוך שם"></span>
+                        <span class="field-description-display" title="‫לחץ כדי לערוך תיאור"></span>
                     </div>
                     <div class="field-controls">
                         <div class="field-type-select-wrapper">
@@ -279,7 +280,7 @@
                             <input type="checkbox" class="field-required-checkbox" id="field-required-template-id">
                             <label for="field-required-template-id">נדרש</label>
                         </div>
-                        <button class="delete-field-btn" aria-label="Delete field" title="מחק שדה">
+                        <button class="delete-field-btn" aria-label="Delete field" title="‫מחק שדה">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.125rem; height: 1.125rem;"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.033-2.134H8.033C6.91 2.75 6 3.664 6 4.834v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
                         </button>
                     </div>

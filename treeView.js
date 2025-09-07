@@ -3,6 +3,26 @@ import * as dom from './dom.js';
 import { highlightLine } from './editor.js';
 import * as constants from './constants.js';
 
+function formatJsonPath(path) {
+    if (!path || path.length === 0) {
+        return '$';
+    }
+    let result = '$';
+    for (const segment of path) {
+        if (typeof segment === 'number') {
+            result += `[${segment}]`;
+        } else {
+            const segmentStr = String(segment);
+            if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(segmentStr)) {
+                result += `.${segmentStr}`;
+            } else {
+                result += `['${segmentStr.replace(/'/g, "\\'")}']`;
+            }
+        }
+    }
+    return result;
+}
+
 export function getExpansionState() {
     const openPaths = new Set();
     dom.treeView.querySelectorAll('details[open]').forEach(el => {
@@ -19,6 +39,15 @@ function createJsonNode(key, value, isRoot, context, path) {
     if (isRoot) {
         nodeElement.dataset.isRootNode = 'true';
     }
+    
+    const cleanPath = path.map(segment => {
+        if (context.locationsMap && typeof segment === 'string' && segment.includes(constants.UID_SEPARATOR)) {
+            const locationInfo = context.locationsMap.get(segment);
+            return locationInfo ? locationInfo.originalKey : segment.split(constants.UID_SEPARATOR)[0];
+        }
+        return segment;
+    });
+    const jsonPathString = formatJsonPath(cleanPath);
 
     let displayKey = key;
     let line;
@@ -60,6 +89,7 @@ function createJsonNode(key, value, isRoot, context, path) {
         }
 
         const summary = document.createElement('summary');
+        summary.dataset.jsonPath = jsonPathString;
         
         const toggleIcon = document.createElement('span');
         toggleIcon.className = 'tree-toggle-icon';
@@ -124,6 +154,7 @@ function createJsonNode(key, value, isRoot, context, path) {
     } else {
         const leaf = document.createElement('div');
         leaf.className = 'tree-leaf';
+        leaf.dataset.jsonPath = jsonPathString;
         const lineToUse = line || context.parentLine;
         if(lineToUse) leaf.dataset.line = lineToUse;
 
@@ -174,6 +205,8 @@ export function buildTreeView(data, context = {}) {
     dom.treeView.innerHTML = '';
     if (dom.treeSearchInput) dom.treeSearchInput.value = '';
     highlightLine(null);
+    dom.treePathDisplay.hidden = true;
+    dom.treePathDisplay.textContent = '';
 
     if (dom.toggleTreeBtn) {
         dom.toggleTreeBtn.dataset.state = 'collapsed';

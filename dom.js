@@ -25,6 +25,7 @@ export const treeSearchBtn = document.getElementById('tree-search-btn');
 export const toggleTreeBtn = document.getElementById('toggle-tree-btn');
 export const expandAllIcon = document.getElementById('expand-all-icon');
 export const collapseAllIcon = document.getElementById('collapse-all-icon');
+export const treePathDisplay = document.getElementById('tree-path-display');
 export const loadFileBtn = document.getElementById('load-file-btn');
 export const fileInput = document.getElementById('file-input');
 export const manageSchemasBtn = document.getElementById('manage-schemas-btn');
