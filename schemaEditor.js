@@ -511,12 +511,16 @@ function clearSchemaEditorForm() {
     dom.schemaEditorFeedback.hidden = true;
     dom.schemaComplexityWarning.hidden = true;
     dom.fieldsContainer.innerHTML = '';
+    dom.schemaFieldSearchInput.value = '';
+    clearFieldSearchHighlights();
 }
 
 export function loadSchemaForEditing() {
     const key = dom.schemaEditSelect.value;
     dom.schemaEditorFeedback.hidden = true;
     state.currentEditingSchemaKey = key;
+    dom.schemaFieldSearchInput.value = '';
+    clearFieldSearchHighlights();
 
     if (!key) {
         clearSchemaEditorForm();
@@ -631,6 +635,8 @@ export function downloadSchemaFile() {
 export function openSchemaEditor() {
     const selectedSchemaKey = dom.schemaValidatorSelect.value;
     dom.schemaEditorModal.hidden = false;
+    dom.schemaFieldSearchInput.value = '';
+    clearFieldSearchHighlights();
     populateSchemaSelects();
     if (selectedSchemaKey && state.schemaData && state.schemaData[selectedSchemaKey]) {
         dom.schemaEditSelect.value = selectedSchemaKey;
@@ -720,6 +726,8 @@ export function handleSchemaFileUpload(event) {
         try {
             const loadedJson = JSON.parse(e.target.result);
             clearSchemaEditorForm();
+            dom.schemaFieldSearchInput.value = '';
+            clearFieldSearchHighlights();
             dom.schemaEditorFormContainer.hidden = false;
             dom.schemaEditorFooter.hidden = false;
             const isSchema = loadedJson && typeof loadedJson === 'object' && !Array.isArray(loadedJson) && (loadedJson.hasOwnProperty('$schema') || loadedJson.hasOwnProperty('properties'));
@@ -774,6 +782,8 @@ export function handleCreateNewSchema() {
     const newSchemaString = JSON.stringify(newSchemaTemplate, null, 2);
     dom.schemaContentTextarea.value = newSchemaString;
     state.initialSchemaStateOnLoad = newSchemaString;
+    dom.schemaFieldSearchInput.value = '';
+    clearFieldSearchHighlights();
     updateVisualBuilderFromRaw();
     dom.schemaTitleInput.focus();
 }
@@ -933,4 +943,46 @@ export function handleSchemaTitleInput(e) {
 
 export function handleNewFieldNameInput(e) {
     sanitizeInput(e, /[^a-zA-Z0-9_-]/g)
+}
+
+export function clearFieldSearchHighlights() {
+    dom.visualBuilderContainer.querySelectorAll('.field-search-highlight').forEach(el => {
+        el.classList.remove('field-search-highlight');
+    });
+}
+
+export function performFieldSearch() {
+    clearFieldSearchHighlights();
+    const searchTerm = dom.schemaFieldSearchInput.value.trim().toLowerCase();
+    if (!searchTerm) return;
+
+    const revealField = (element) => {
+        let current = element;
+        while (current && current !== dom.visualBuilderContainer) {
+            if (current.tagName === 'DETAILS') {
+                current.open = true;
+            }
+            current = current.parentElement;
+        }
+    };
+
+    const fieldNameElements = dom.visualBuilderContainer.querySelectorAll('.field-name-display');
+    let firstFoundElement = null;
+
+    fieldNameElements.forEach(nameEl => {
+        if (nameEl.textContent.toLowerCase().includes(searchTerm)) {
+            const summary = nameEl.closest('.field-summary');
+            if (summary) {
+                summary.classList.add('field-search-highlight');
+                revealField(summary);
+                if (!firstFoundElement) {
+                    firstFoundElement = summary;
+                }
+            }
+        }
+    });
+
+    if (firstFoundElement) {
+        firstFoundElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 }

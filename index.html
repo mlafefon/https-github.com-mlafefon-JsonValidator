@@ -51,7 +51,17 @@
                 </div>
                 <div id="schema-feedback" class="feedback-display" hidden>
                     <div id="schema-feedback-icon"></div>
-                    <div id="schema-feedback-message"></div>
+                    <div class="feedback-content">
+                        <div class="feedback-header">
+                            <div id="schema-feedback-title"></div>
+                            <button id="copy-schema-errors-btn" class="icon-button" title="העתק שגיאות" aria-label="Copy errors" hidden>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1rem; height: 1rem;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375v-4.5a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="schema-feedback-message"></div>
+                    </div>
                 </div>
                 <div id="error-display" class="error-display" hidden>
                     <div id="error-icon"></div>
@@ -71,7 +81,11 @@
                         </svg>
                     </button>
                     <input type="search" id="tree-search-input" class="tree-search-input" placeholder="חפש במפתח או בערך..." dir="ltr">
-                    <button id="tree-search-btn" class="action-button tree-search-button">חפש</button>
+                    <button id="tree-search-btn" class="action-button tree-search-button" title="חפש">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.125rem; height: 1.125rem;">
+                           <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                        </svg>
+                    </button>
                 </div>
                 <div id="tree-view" class="tree-view-container">
                     <p class="tree-placeholder">הצג תצוגת עץ כאן כאשר ה-JSON תקין.</p>
@@ -139,6 +153,14 @@
                         <div class="visual-builder-column">
                             <div class="builder-header">
                                 <h3 class="builder-title">השדות</h3>
+                                <div class="field-search-container">
+                                    <input type="search" id="schema-field-search-input" class="tree-search-input" placeholder="חפש שדה..." dir="ltr">
+                                    <button id="schema-field-search-btn" class="action-button tree-search-button" title="חפש שדה">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.125rem; height: 1.125rem;">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                        </svg>
+                                    </button>
+                                </div>
                                 <button id="add-schema-field-btn" class="action-button add-field-button-main">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1rem; height: 1rem;">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

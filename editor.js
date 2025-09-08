@@ -364,7 +364,9 @@ function validateJsonAgainstSchema(jsonData, schema) {
 function displaySchemaValidationResults(errors, objectCount = 1) {
     dom.schemaFeedback.hidden = true;
     dom.schemaFeedback.className = 'feedback-display';
+    dom.schemaFeedbackTitle.textContent = '';
     dom.schemaFeedbackMessageEl.innerHTML = '';
+    dom.copySchemaErrorsBtn.hidden = true;
 
     if (!errors) return;
 
@@ -372,13 +374,14 @@ function displaySchemaValidationResults(errors, objectCount = 1) {
         dom.schemaFeedback.classList.add('feedback-success');
         dom.schemaFeedbackIconEl.innerHTML = constants.ICONS.SUCCESS;
         const objectStr = objectCount > 1 ? `${objectCount} האובייקטים` : 'האובייקט';
-        dom.schemaFeedbackMessageEl.textContent = `אימות סכמה עבר בהצלחה! ${objectStr} תואמ(ים) לסכמה שנבחרה.`;
+        dom.schemaFeedbackTitle.textContent = 'אימות סכמה עבר בהצלחה!';
+        dom.schemaFeedbackMessageEl.textContent = `${objectStr} תואמ(ים) לסכמה שנבחרה.`;
         dom.schemaFeedback.hidden = false;
     } else {
         dom.schemaFeedback.classList.add('feedback-error');
         dom.schemaFeedbackIconEl.innerHTML = constants.ICONS.ERROR;
         
-        const errorHeader = `נמצאו ${errors.length} שגיאות אימות סכמה:`;
+        dom.schemaFeedbackTitle.textContent = `נמצאו ${errors.length} שגיאות אימות סכמה:`;
         
         const errorListHtml = errors.slice(0, 10).map(error => {
             const line = state.pathToLineMap ? state.pathToLineMap.get(error.path) : null;
@@ -391,7 +394,8 @@ function displaySchemaValidationResults(errors, objectCount = 1) {
         
         const extraErrors = errors.length > 10 ? `<div class="schema-error-line">...ועוד ${errors.length - 10} שגיאות.</div>` : '';
         
-        dom.schemaFeedbackMessageEl.innerHTML = `<div>${errorHeader}</div>${errorListHtml}${extraErrors}`;
+        dom.schemaFeedbackMessageEl.innerHTML = `${errorListHtml}${extraErrors}`;
+        dom.copySchemaErrorsBtn.hidden = false;
         dom.schemaFeedback.hidden = false;
     }
 }

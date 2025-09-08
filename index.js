@@ -75,6 +75,30 @@ dom.schemaFeedback.addEventListener('click', (e) => {
     }
 });
 
+dom.copySchemaErrorsBtn.addEventListener('click', () => {
+    const errorNodes = dom.schemaFeedbackMessageEl.querySelectorAll('.schema-error-line');
+    let errorText = dom.schemaFeedbackTitle.textContent + '\n\n';
+    errorNodes.forEach(node => {
+        errorText += node.textContent.trim() + '\n';
+    });
+
+    if (!errorText.trim()) return;
+
+    navigator.clipboard.writeText(errorText.trim()).then(() => {
+        const originalIcon = dom.copySchemaErrorsBtn.innerHTML;
+        const checkIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 1rem; height: 1rem;"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>`;
+        dom.copySchemaErrorsBtn.innerHTML = checkIcon;
+        dom.copySchemaErrorsBtn.disabled = true;
+
+        setTimeout(() => {
+            dom.copySchemaErrorsBtn.innerHTML = originalIcon;
+            dom.copySchemaErrorsBtn.disabled = false;
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy errors: ', err);
+    });
+});
+
 // Tree View Listeners
 dom.treeView.addEventListener('click', (e) => {
     // 1. Prevent summary from toggling unless the icon is clicked
@@ -157,6 +181,18 @@ dom.visualBuilderContainer.addEventListener('change', schemaEditor.handleVisualB
 dom.visualBuilderContainer.addEventListener('input', schemaEditor.handleVisualBuilderInputs);
 dom.schemaTitleInput.addEventListener('input', schemaEditor.handleSchemaTitleInput);
 dom.schemaDescriptionInput.addEventListener('input', schemaEditor.triggerUIUpdate);
+dom.schemaFieldSearchBtn.addEventListener('click', schemaEditor.performFieldSearch);
+dom.schemaFieldSearchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        schemaEditor.performFieldSearch();
+    }
+});
+dom.schemaFieldSearchInput.addEventListener('input', () => {
+    if (dom.schemaFieldSearchInput.value.trim() === '') {
+        schemaEditor.clearFieldSearchHighlights();
+    }
+});
 
 // --- ADD FIELD MODAL LISTENERS ---
 dom.addFieldForm.addEventListener('submit', schemaEditor.handleAddFieldFromModal);
