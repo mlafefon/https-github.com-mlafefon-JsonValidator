@@ -274,6 +274,13 @@ function validateJsonAgainstSchema(jsonData, schema) {
         
         // --- HANDLE CONTAINERS FIRST ---
         if (schema.type === 'object' && instanceType === 'object') {
+            const keys = Object.keys(instance);
+            if (schema.minProperties !== undefined && keys.length < schema.minProperties) {
+                pushError(`מספר מאפיינים נמוך מדי בנתיב '${path}': ישנם ${keys.length} מאפיינים, אך המינימום הנדרש הוא ${schema.minProperties}.`, path, schema);
+            }
+            if (schema.maxProperties !== undefined && keys.length > schema.maxProperties) {
+                pushError(`מספר מאפיינים גבוה מדי בנתיב '${path}': ישנם ${keys.length} מאפיינים, אך המקסימום המותר הוא ${schema.maxProperties}.`, path, schema);
+            }
             if (schema.required) {
                 for (const key of schema.required) {
                     if (instance[key] === undefined) {
@@ -289,17 +296,27 @@ function validateJsonAgainstSchema(jsonData, schema) {
                     }
                 }
             }
-            // All object validations are done for this level, so we can stop.
             return;
         }
 
         if (schema.type === 'array' && instanceType === 'array') {
+            if (schema.minItems !== undefined && instance.length < schema.minItems) {
+                pushError(`מספר פריטים נמוך מדי בנתיב '${path}': ישנם ${instance.length} פריטים, אך המינימום הנדרש הוא ${schema.minItems}.`, path, schema);
+            }
+            if (schema.maxItems !== undefined && instance.length > schema.maxItems) {
+                pushError(`מספר פריטים גבוה מדי בנתיב '${path}': ישנם ${instance.length} פריטים, אך המקסימום המותר הוא ${schema.maxItems}.`, path, schema);
+            }
+            if (schema.uniqueItems === true) {
+                const stringifiedItems = instance.map(item => JSON.stringify(item));
+                if (new Set(stringifiedItems).size !== instance.length) {
+                    pushError(`פריטים לא ייחודיים בנתיב '${path}': המערך מכיל פריטים כפולים, אך נדרשת ייחודיות.`, path, schema);
+                }
+            }
             if (schema.items) {
                 for (let i = 0; i < instance.length; i++) {
                     validate(instance[i], schema.items, `${path}/${i}`);
                 }
             }
-             // All array validations are done for this level, so we can stop.
             return;
         }
 

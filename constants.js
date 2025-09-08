@@ -17,7 +17,7 @@ export const LS_SCHEMA_KEY = 'userSchemas_v2';
 export const VALIDATION_DESCRIPTIONS = {
     // Common
     enum: {
-        placeholder: 'ערכים מותרים (מופרדים בפסיק)',
+        placeholder: 'ערכים מותרים (מופרד פסיק)',
         title: {
             string: '\u202Bרשימת ערכי טקסט מותרים, מופרדים בפסיקים. לדוגמה: red, green, blue',
             number: '\u202Bרשימת ערכים מספריים מותרים, מופרדים בפסיקים. לדוגמה: 1, 2, 3, 10.5'
