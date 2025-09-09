@@ -609,11 +609,103 @@ body {
     background-color: var(--bg-color-deep); border-radius: var(--border-radius-md);
     border: 1px solid var(--border-color);
 }
-.schema-editor-textarea { flex-grow: 1; border-radius: var(--border-radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-color-deep); padding: var(--space-sm); }
-.schema-editor-textarea:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.3); outline: none; }
+.schema-editor-textarea {
+    flex-grow: 1;
+    padding: var(--space-sm);
+}
 #schema-editor-feedback, #schema-complexity-warning { margin: 0; }
 .add-field-button-main { background-color: var(--accent-blue); font-size: 0.875rem; padding: 0.375rem 0.75rem; flex-shrink: 0; }
 .add-field-button-main:hover { background-color: var(--accent-blue-hover); }
+
+/* --- Schema Editor Tabs --- */
+.schema-editor-textarea-container {
+    flex-grow: 1;
+    display: flex;
+    overflow: hidden;
+    font-family: var(--font-family-mono);
+    font-size: 0.9rem;
+    line-height: 1.5rem;
+    position: relative;
+    direction: ltr;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color-deep);
+    transition: var(--transition-fast);
+}
+.schema-editor-textarea-container .line-numbers {
+    padding: var(--space-sm) var(--space-sm) var(--space-sm);
+}
+.schema-editor-textarea-container:focus-within {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.3);
+}
+
+#schema-raw-editor-container .builder-header {
+    padding: 0;
+    align-items: stretch;
+}
+.tab-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    width: 100%;
+}
+.tab-button {
+    padding: var(--space-sm) var(--space-md);
+    cursor: pointer;
+    background-color: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-color-medium);
+    font-weight: 500;
+    font-size: 0.9rem;
+    position: relative;
+    border-bottom: 2px solid transparent;
+    transition: var(--transition-fast);
+}
+.tab-button:hover {
+    color: var(--text-color-light);
+}
+.tab-button.active {
+    color: var(--accent-blue);
+    border-bottom-color: var(--accent-blue);
+}
+.tab-button:focus-visible {
+    background-color: var(--bg-color-subtle);
+}
+
+.header-icon-button {
+    background-color: var(--bg-color-subtle);
+    border: 1px solid var(--border-color-strong);
+    padding: 0.5rem;
+}
+.header-icon-button:hover {
+    background-color: var(--border-color-strong);
+    border-color: var(--text-color-dark);
+}
+
+.tab-content-container {
+    flex-grow: 1;
+    min-height: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+.tab-pane {
+    display: none; /* Hidden by default */
+    flex-grow: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+.tab-pane.active {
+    display: flex; /* Shown when active */
+}
+
+#example-json-feedback {
+    margin: 0;
+    flex-shrink: 0; /* prevent it from shrinking */
+}
 
 /* --- Visual Builder Field Row --- */
 #schema-fields-container { display: flex; flex-direction: column; gap: var(--space-xs); }

@@ -50,6 +50,20 @@ export const schemaEditorFooter = document.getElementById('schema-editor-footer'
 export const schemaFieldSearchInput = document.getElementById('schema-field-search-input');
 export const schemaFieldSearchBtn = document.getElementById('schema-field-search-btn');
 
+// --- SCHEMA EDITOR TABS ---
+export const schemaContentTab = document.getElementById('schema-content-tab');
+export const exampleJsonTab = document.getElementById('example-json-tab');
+export const schemaContentPane = document.getElementById('schema-content-pane');
+export const exampleJsonPane = document.getElementById('example-json-pane');
+export const schemaContentLineNumbers = document.getElementById('schema-content-line-numbers');
+export const exampleJsonLineNumbers = document.getElementById('example-json-line-numbers');
+export const exampleJsonTextarea = document.getElementById('example-json-textarea');
+export const exampleJsonFeedback = document.getElementById('example-json-feedback');
+export const exampleJsonFeedbackIcon = document.getElementById('example-json-feedback-icon');
+export const exampleJsonFeedbackMessage = document.getElementById('example-json-feedback-message');
+export const uploadExampleJsonBtn = document.getElementById('upload-example-json-btn');
+export const exampleJsonFileInput = document.getElementById('example-json-file-input');
+
 // --- SCHEMA BUILDER UI ELEMENTS ---
 export const visualBuilderContainer = document.getElementById('schema-visual-builder-container');
 export const fieldsContainer = document.getElementById('schema-fields-container');

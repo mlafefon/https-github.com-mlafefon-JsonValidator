@@ -146,9 +146,36 @@
                     <div class="schema-editor-main-area">
                          <div id="schema-raw-editor-container" class="visual-builder-column">
                             <div class="builder-header">
-                                <h3 class="builder-title">תוכן הסכמה (JSON Schema)</h3>
+                                <div class="tab-bar">
+                                    <div>
+                                        <button id="schema-content-tab" class="tab-button active" type="button">תוכן הסכמה</button>
+                                        <button id="example-json-tab" class="tab-button" type="button">JSON לדוגמה</button>
+                                    </div>
+                                    <button id="upload-example-json-btn" class="action-button header-icon-button" title="‫טען JSON לדוגמה מהמחשב" hidden>
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1.25rem; height: 1.25rem;">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"></path>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
-                            <textarea id="schema-content-textarea" class="json-textarea schema-editor-textarea" spellcheck="false" dir="ltr" title="‫קוד המקור של הסכמה בפורמט JSON Schema."></textarea>
+                            <div class="tab-content-container">
+                                <div id="schema-content-pane" class="tab-pane active">
+                                    <div class="schema-editor-textarea-container">
+                                        <div id="schema-content-line-numbers" class="line-numbers" aria-hidden="true"><div>1</div></div>
+                                        <textarea id="schema-content-textarea" class="json-textarea schema-editor-textarea" spellcheck="false" dir="ltr" title="‫קוד המקור של הסכמה בפורמט JSON Schema." wrap="off"></textarea>
+                                    </div>
+                                </div>
+                                <div id="example-json-pane" class="tab-pane">
+                                    <div class="schema-editor-textarea-container">
+                                        <div id="example-json-line-numbers" class="line-numbers" aria-hidden="true"><div>1</div></div>
+                                        <textarea id="example-json-textarea" class="json-textarea schema-editor-textarea" spellcheck="false" dir="ltr" placeholder='{ "paste": "your example JSON here" }' title="JSON לדוגמה לבדיקת הסכמה." wrap="off"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="example-json-feedback" class="feedback-display" hidden>
+                                <div id="example-json-feedback-icon"></div>
+                                <p id="example-json-feedback-message"></p>
+                            </div>
                         </div>
                         <div class="visual-builder-column">
                             <div class="builder-header">
@@ -197,6 +224,7 @@
                 <button id="save-schema-btn" class="action-button save-button" title="‫שומר את השינויים בסשן הנכחי בלבד.">שמור שינויים</button>
             </footer>
              <input type="file" id="schema-file-input" accept=".json" hidden />
+             <input type="file" id="example-json-file-input" accept=".json" hidden />
         </div>
     </div>
 

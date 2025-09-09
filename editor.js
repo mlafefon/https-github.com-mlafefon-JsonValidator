@@ -239,7 +239,7 @@ function getLineAndColumnFromPosition(text, position) {
     return { line, column };
 }
 
-function validateJsonAgainstSchema(jsonData, schema) {
+export function validateJsonAgainstSchema(jsonData, schema) {
     const errors = [];
 
     function pushError(baseMessage, path, currentSchema, type = 'invalidValue') {

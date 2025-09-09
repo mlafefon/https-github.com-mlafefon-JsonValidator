@@ -1,5 +1,6 @@
 
 
+
 import * as dom from './dom.js';
 import { state } from './state.js';
 import * as editor from './editor.js';
@@ -174,7 +175,6 @@ dom.createNewSchemaBtn.addEventListener('click', schemaEditor.handleCreateNewSch
 dom.schemaEditSelect.addEventListener('change', schemaEditor.loadSchemaForEditing);
 dom.saveSchemaBtn.addEventListener('click', schemaEditor.saveSchema);
 dom.downloadSchemaBtn.addEventListener('click', schemaEditor.downloadSchemaFile);
-dom.schemaContentTextarea.addEventListener('input', schemaEditor.updateVisualBuilderFromRaw);
 dom.addSchemaFieldBtn.addEventListener('click', () => schemaEditor.openAddFieldModal(dom.fieldsContainer));
 dom.visualBuilderContainer.addEventListener('click', schemaEditor.handleVisualBuilderClicks);
 dom.visualBuilderContainer.addEventListener('change', schemaEditor.handleVisualBuilderChanges);
@@ -249,7 +249,7 @@ function showEasterEgg() {
     overlay.className = 'easter-egg-overlay';
     const messageBox = document.createElement('div');
     messageBox.className = 'easter-egg-box';
-    messageBox.textContent = 'made by: Galanti Amir';
+    messageBox.textContent = 'vibe by: Galanti Amir';
     overlay.appendChild(messageBox);
     document.body.appendChild(overlay);
     overlay.addEventListener('click', () => overlay.remove());
@@ -281,6 +281,7 @@ loadAppVersion();
 editor.updateLineNumbers();
 editor.validateAndParseJson();
 schemaEditor.initializeSchemaValidator();
+schemaEditor.initializeSchemaEditorEventListeners();
 const resizeObserver = new ResizeObserver(() => {
     const scrollbarHeight = dom.jsonInput.offsetHeight - dom.jsonInput.clientHeight;
     dom.lineNumbers.style.paddingBottom = `calc(1rem + ${scrollbarHeight}px)`;

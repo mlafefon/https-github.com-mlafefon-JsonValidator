@@ -1,6 +1,7 @@
 export const state = {
     validationTimeout: undefined,
     schemaBuilderTimeout: undefined,
+    exampleJsonValidationTimeout: undefined,
     currentHighlight: { gutter: null, background: null, line: null },
     currentErrorHighlight: { background: null, line: null },
     schemaData: null,

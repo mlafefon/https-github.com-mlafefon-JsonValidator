@@ -2,7 +2,23 @@ import * as dom from './dom.js';
 import { state } from './state.js';
 import * as constants from './constants.js';
 import { sanitizeInput } from './utils.js';
-import { validateAndParseJson } from './editor.js';
+import { validateAndParseJson, validateJsonAgainstSchema } from './editor.js';
+
+
+function updateLineNumbersForTextarea(textarea, lineNumbersContainer) {
+    if (!textarea || !lineNumbersContainer) return;
+    const text = textarea.value;
+    const lineCount = text.split('\n').length || 1;
+    lineNumbersContainer.innerHTML = Array.from({ length: lineCount }, (_, i) => `<div>${i + 1}</div>`).join('');
+    
+    const scrollbarHeight = textarea.offsetHeight - textarea.clientHeight;
+    lineNumbersContainer.style.paddingBottom = `calc(var(--space-sm) + ${scrollbarHeight}px)`;
+}
+
+function handleTextareaScroll(textarea, lineNumbersContainer) {
+    if (!textarea || !lineNumbersContainer) return;
+    lineNumbersContainer.scrollTop = textarea.scrollTop;
+}
 
 
 function hasUnsavedChanges() {
@@ -76,9 +92,69 @@ function displaySchemaEditorFeedback(type, message) {
     }, 5000);
 }
 
+function displayExampleJsonFeedback(errors) {
+    const feedbackEl = dom.exampleJsonFeedback;
+    const iconEl = dom.exampleJsonFeedbackIcon;
+    const messageEl = dom.exampleJsonFeedbackMessage;
+
+    if (!errors) {
+        feedbackEl.hidden = true;
+        return;
+    }
+
+    feedbackEl.hidden = false;
+    feedbackEl.className = 'feedback-display'; // Reset
+
+    if (errors.length === 0) {
+        feedbackEl.classList.add('feedback-success');
+        iconEl.innerHTML = constants.ICONS.SUCCESS;
+        messageEl.textContent = 'ה-JSON לדוגמה תואם לסכמה הנוכחית!';
+    } else {
+        feedbackEl.classList.add('feedback-error');
+        iconEl.innerHTML = constants.ICONS.ERROR;
+        const errorMessages = errors.slice(0, 5).map(e => `- ${e.message}`).join('\n');
+        const moreErrors = errors.length > 5 ? `\n...ועוד ${errors.length - 5} שגיאות.` : '';
+        messageEl.style.whiteSpace = 'pre-wrap'; // To respect newlines
+        messageEl.textContent = `נמצאו ${errors.length} שגיאות:\n${errorMessages}${moreErrors}`;
+    }
+}
+
+function validateExampleJson() {
+    const schemaText = dom.schemaContentTextarea.value;
+    const exampleText = dom.exampleJsonTextarea.value;
+
+    if (!schemaText.trim() || !exampleText.trim()) {
+        displayExampleJsonFeedback(null); // Hide feedback if either is empty
+        return;
+    }
+
+    let schema, exampleJson;
+
+    try {
+        schema = JSON.parse(schemaText);
+    } catch (e) {
+        displayExampleJsonFeedback([{ message: `סכמה לא תקינה: ${e.message}` }]);
+        return;
+    }
+
+    try {
+        exampleJson = JSON.parse(exampleText);
+    } catch (e) {
+        displayExampleJsonFeedback([{ message: `JSON לדוגמה לא תקין: ${e.message}` }]);
+        return;
+    }
+
+    const errors = validateJsonAgainstSchema(exampleJson, schema);
+    displayExampleJsonFeedback(errors);
+}
+
+
 export function triggerUIUpdate() {
     clearTimeout(state.schemaBuilderTimeout);
-    state.schemaBuilderTimeout = setTimeout(buildSchemaFromUI, 300);
+    state.schemaBuilderTimeout = setTimeout(() => {
+        buildSchemaFromUI();
+        validateExampleJson();
+    }, 300);
 }
 
 function renderFieldDetails(fieldRow, type, initialData = {}) {
@@ -505,6 +581,8 @@ function clearSchemaEditorForm() {
     dom.schemaTitleInput.value = '';
     dom.schemaDescriptionInput.value = '';
     dom.schemaContentTextarea.value = '';
+    dom.exampleJsonTextarea.value = '';
+    dom.exampleJsonFeedback.hidden = true;
     state.initialSchemaStateOnLoad = '';
     state.isEditingExistingSchema = false;
     state.currentEditingSchemaKey = null;
@@ -521,6 +599,8 @@ export function loadSchemaForEditing() {
     state.currentEditingSchemaKey = key;
     dom.schemaFieldSearchInput.value = '';
     clearFieldSearchHighlights();
+    dom.exampleJsonTextarea.value = '';
+    dom.exampleJsonFeedback.hidden = true;
 
     if (!key) {
         clearSchemaEditorForm();
@@ -632,6 +712,15 @@ export function downloadSchemaFile() {
     URL.revokeObjectURL(url);
 }
 
+function switchTab(tabId) {
+    const isSchemaTab = tabId === 'schema';
+    dom.schemaContentTab.classList.toggle('active', isSchemaTab);
+    dom.exampleJsonTab.classList.toggle('active', !isSchemaTab);
+    dom.schemaContentPane.classList.toggle('active', isSchemaTab);
+    dom.exampleJsonPane.classList.toggle('active', !isSchemaTab);
+    dom.uploadExampleJsonBtn.hidden = isSchemaTab;
+}
+
 export function openSchemaEditor() {
     const selectedSchemaKey = dom.schemaValidatorSelect.value;
     dom.schemaEditorModal.hidden = false;
@@ -646,6 +735,11 @@ export function openSchemaEditor() {
         dom.schemaEditorFormContainer.hidden = true;
         dom.schemaEditorFooter.hidden = true;
     }
+    updateLineNumbersForTextarea(dom.schemaContentTextarea, dom.schemaContentLineNumbers);
+    updateLineNumbersForTextarea(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);
+    handleTextareaScroll(dom.schemaContentTextarea, dom.schemaContentLineNumbers);
+    handleTextareaScroll(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);
+    switchTab('schema');
 }
 
 export function closeSchemaEditor() {
@@ -985,4 +1079,64 @@ export function performFieldSearch() {
     if (firstFoundElement) {
         firstFoundElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+}
+
+function handleExampleJsonUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const content = e.target.result;
+            // Try to parse to check if it's valid, then stringify to beautify it for the user
+            const parsed = JSON.parse(content);
+            dom.exampleJsonTextarea.value = JSON.stringify(parsed, null, 2);
+
+            switchTab('example');
+
+            // Manually trigger updates
+            updateLineNumbersForTextarea(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);
+            validateExampleJson();
+
+            // Focus and scroll to top
+            dom.exampleJsonTextarea.focus();
+            dom.exampleJsonTextarea.setSelectionRange(0, 0);
+            dom.exampleJsonTextarea.scrollTop = 0;
+            handleTextareaScroll(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);
+        } catch (err) {
+            displayExampleJsonFeedback([{ message: `קובץ JSON לדוגמה לא תקין: ${err.message}` }]);
+        }
+    };
+    reader.onerror = () => {
+        displayExampleJsonFeedback([{ message: `שגיאה בקריאת הקובץ: ${reader.error.message}` }]);
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Reset for next upload
+}
+
+export function initializeSchemaEditorEventListeners() {
+    dom.schemaContentTab.addEventListener('click', () => switchTab('schema'));
+    dom.exampleJsonTab.addEventListener('click', () => switchTab('example'));
+
+    dom.uploadExampleJsonBtn.addEventListener('click', () => dom.exampleJsonFileInput.click());
+    dom.exampleJsonFileInput.addEventListener('change', handleExampleJsonUpload);
+
+    dom.exampleJsonTextarea.addEventListener('input', () => {
+        updateLineNumbersForTextarea(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);
+        clearTimeout(state.exampleJsonValidationTimeout);
+        state.exampleJsonValidationTimeout = setTimeout(validateExampleJson, 500);
+    });
+    dom.exampleJsonTextarea.addEventListener('scroll', () => {
+        handleTextareaScroll(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);
+    });
+
+    dom.schemaContentTextarea.addEventListener('input', () => {
+        updateLineNumbersForTextarea(dom.schemaContentTextarea, dom.schemaContentLineNumbers);
+        updateVisualBuilderFromRaw();
+        clearTimeout(state.exampleJsonValidationTimeout);
+        state.exampleJsonValidationTimeout = setTimeout(validateExampleJson, 500);
+    });
+    dom.schemaContentTextarea.addEventListener('scroll', () => {
+        handleTextareaScroll(dom.schemaContentTextarea, dom.schemaContentLineNumbers);
+    });
 }
