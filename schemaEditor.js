@@ -714,11 +714,16 @@ export function downloadSchemaFile() {
 
 function switchTab(tabId) {
     const isSchemaTab = tabId === 'schema';
+    const isExampleTab = tabId === 'example';
+
     dom.schemaContentTab.classList.toggle('active', isSchemaTab);
-    dom.exampleJsonTab.classList.toggle('active', !isSchemaTab);
+    dom.exampleJsonTab.classList.toggle('active', isExampleTab);
+
     dom.schemaContentPane.classList.toggle('active', isSchemaTab);
-    dom.exampleJsonPane.classList.toggle('active', !isSchemaTab);
-    dom.uploadExampleJsonBtn.hidden = isSchemaTab;
+    dom.exampleJsonPane.classList.toggle('active', isExampleTab);
+
+    dom.uploadExampleJsonBtn.hidden = !isExampleTab;
+    dom.generateExampleJsonBtn.hidden = !isExampleTab;
 }
 
 export function openSchemaEditor() {
@@ -1088,17 +1093,14 @@ function handleExampleJsonUpload(event) {
     reader.onload = (e) => {
         try {
             const content = e.target.result;
-            // Try to parse to check if it's valid, then stringify to beautify it for the user
             const parsed = JSON.parse(content);
             dom.exampleJsonTextarea.value = JSON.stringify(parsed, null, 2);
 
             switchTab('example');
 
-            // Manually trigger updates
             updateLineNumbersForTextarea(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);
             validateExampleJson();
 
-            // Focus and scroll to top
             dom.exampleJsonTextarea.focus();
             dom.exampleJsonTextarea.setSelectionRange(0, 0);
             dom.exampleJsonTextarea.scrollTop = 0;
@@ -1111,8 +1113,84 @@ function handleExampleJsonUpload(event) {
         displayExampleJsonFeedback([{ message: `שגיאה בקריאת הקובץ: ${reader.error.message}` }]);
     };
     reader.readAsText(file);
-    event.target.value = ''; // Reset for next upload
+    event.target.value = '';
 }
+
+function generateSampleJsonFromSchema(schema) {
+    if (!schema || typeof schema.type === 'undefined') {
+        if (schema === true) return "any_value";
+        return null;
+    }
+
+    switch (schema.type) {
+        case 'object': {
+            const obj = {};
+            if (schema.properties) {
+                const required = schema.required || [];
+                for (const key of required) {
+                    if (schema.properties[key]) {
+                        obj[key] = generateSampleJsonFromSchema(schema.properties[key]);
+                    }
+                }
+                const nonRequiredKey = Object.keys(schema.properties).find(k => !required.includes(k));
+                if (nonRequiredKey) {
+                     obj[nonRequiredKey] = generateSampleJsonFromSchema(schema.properties[nonRequiredKey]);
+                }
+            }
+            return obj;
+        }
+        case 'array': {
+            const arr = [];
+            if (schema.items) {
+                arr.push(generateSampleJsonFromSchema(schema.items));
+            }
+            return arr;
+        }
+        case 'string':
+            if (schema.enum && schema.enum.length > 0) return schema.enum[0];
+            return "example_string";
+        case 'number':
+            if (schema.enum && schema.enum.length > 0) return schema.enum[0];
+            return schema.minimum !== undefined ? schema.minimum : 123.45;
+        case 'integer':
+            if (schema.enum && schema.enum.length > 0) return schema.enum[0];
+            return schema.minimum !== undefined ? schema.minimum : 123;
+        case 'boolean':
+            return true;
+        case 'null':
+            return null;
+        default:
+            return `unsupported_type_${schema.type}`;
+    }
+}
+
+function handleGenerateExampleJson() {
+    const schemaText = dom.schemaContentTextarea.value.trim();
+    if (!schemaText) {
+        displayExampleJsonFeedback([{ message: "תוכן הסכמה ריק. לא ניתן לייצר דוגמה." }]);
+        switchTab('schema');
+        return;
+    }
+
+    let schema;
+    try {
+        schema = JSON.parse(schemaText);
+    } catch (e) {
+        displayExampleJsonFeedback([{ message: `סכמה לא תקינה: ${e.message}` }]);
+        switchTab('schema');
+        return;
+    }
+
+    const exampleJson = generateSampleJsonFromSchema(schema);
+    dom.exampleJsonTextarea.value = JSON.stringify(exampleJson, null, 2);
+    switchTab('example');
+
+    updateLineNumbersForTextarea(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);
+    validateExampleJson();
+    dom.exampleJsonTextarea.focus();
+    dom.exampleJsonTextarea.scrollTop = 0;
+}
+
 
 export function initializeSchemaEditorEventListeners() {
     dom.schemaContentTab.addEventListener('click', () => switchTab('schema'));
@@ -1120,6 +1198,8 @@ export function initializeSchemaEditorEventListeners() {
 
     dom.uploadExampleJsonBtn.addEventListener('click', () => dom.exampleJsonFileInput.click());
     dom.exampleJsonFileInput.addEventListener('change', handleExampleJsonUpload);
+    
+    dom.generateExampleJsonBtn.addEventListener('click', handleGenerateExampleJson);
 
     dom.exampleJsonTextarea.addEventListener('input', () => {
         updateLineNumbersForTextarea(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);

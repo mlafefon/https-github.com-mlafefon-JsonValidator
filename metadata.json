@@ -1,7 +1,7 @@
 {
   "name": "JSON Validator and Formatter",
   "description": "A web application to validate and format JSON data. Users can paste JSON, check for syntax errors, and beautify it with a single click. The UI is in Hebrew.",
-  "version": "3.0.9",
+  "version": "3.1.0",
   "Develiper": "Amir Galanti",
   "requestFramePermissions": []
 }

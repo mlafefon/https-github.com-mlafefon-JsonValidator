@@ -675,6 +675,11 @@ body {
     background-color: var(--bg-color-subtle);
 }
 
+.tab-actions-group {
+    display: flex;
+    gap: var(--space-sm);
+}
+
 .header-icon-button {
     background-color: var(--bg-color-subtle);
     border: 1px solid var(--border-color-strong);
