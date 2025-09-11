@@ -1,5 +1,6 @@
 
 
+
 import * as dom from './dom.js';
 import { state } from './state.js';
 import * as constants from './constants.js';
@@ -239,7 +240,7 @@ function getLineAndColumnFromPosition(text, position) {
     return { line, column };
 }
 
-export function validateJsonAgainstSchema(jsonData, schema) {
+export function validateJsonAgainstSchema(jsonData, schema, checkAdditionalProperties = false) {
     const errors = [];
 
     function pushError(baseMessage, path, currentSchema, type = 'invalidValue') {
@@ -276,16 +277,31 @@ export function validateJsonAgainstSchema(jsonData, schema) {
         if (schema.type === 'object' && instanceType === 'object') {
             const keys = Object.keys(instance);
             if (schema.minProperties !== undefined && keys.length < schema.minProperties) {
-                pushError(`מספר מאפיינים נמוך מדי בנתיב '${path}': ישנם ${keys.length} מאפיינים, אך המינימום הנדרש הוא ${schema.minProperties}.`, path, schema);
+                pushError(`מספר שדות נמוך מדי בנתיב '${path}': ישנם ${keys.length} שדות, אך המינימום הנדרש הוא ${schema.minProperties}.`, path, schema);
             }
             if (schema.maxProperties !== undefined && keys.length > schema.maxProperties) {
-                pushError(`מספר מאפיינים גבוה מדי בנתיב '${path}': ישנם ${keys.length} מאפיינים, אך המקסימום המותר הוא ${schema.maxProperties}.`, path, schema);
+                pushError(`מספר שדות גבוה מדי בנתיב '${path}': ישנם ${keys.length} שדות, אך המקסימום המותר הוא ${schema.maxProperties}.`, path, schema);
             }
             if (schema.required) {
                 for (const key of schema.required) {
                     if (instance[key] === undefined) {
                         const propertySchema = schema.properties ? schema.properties[key] : undefined;
-                        pushError(`מאפיין חובה חסר בנתיב '${path}': '${key}'.`, path, propertySchema, 'missingProperty');
+                        let missingFieldMessage = 'שדה חובה חסר';
+                        if (propertySchema) {
+                            if (propertySchema.type === 'object') {
+                                missingFieldMessage = 'אובייקט חובה חסר';
+                            } else if (propertySchema.type === 'array') {
+                                missingFieldMessage = 'רשימת חובה חסרה';
+                            }
+                        }
+                        pushError(`${missingFieldMessage} בנתיב '${path}': '${key}'.`, path, propertySchema, 'missingProperty');
+                    }
+                }
+            }
+            if (checkAdditionalProperties && schema.properties) {
+                for (const key in instance) {
+                    if (Object.prototype.hasOwnProperty.call(instance, key) && schema.properties[key] === undefined) {
+                        pushError(`שדה מיותר בנתיב '${path}/${key}'`, `${path}/${key}`, null, 'additionalProperty');
                     }
                 }
             }
@@ -367,37 +383,68 @@ function displaySchemaValidationResults(errors, objectCount = 1) {
     dom.schemaFeedbackTitle.textContent = '';
     dom.schemaFeedbackMessageEl.innerHTML = '';
     dom.copySchemaErrorsBtn.hidden = true;
+    dom.schemaFeedback.style.height = '';
 
     if (!errors) return;
 
-    if (errors.length === 0) {
+    const validationErrors = errors.filter(e => e.type !== 'additionalProperty');
+    const additionalPropWarnings = errors.filter(e => e.type === 'additionalProperty');
+    
+    if (validationErrors.length === 0 && additionalPropWarnings.length === 0) {
         dom.schemaFeedback.classList.add('feedback-success');
         dom.schemaFeedbackIconEl.innerHTML = constants.ICONS.SUCCESS;
         const objectStr = objectCount > 1 ? `${objectCount} האובייקטים` : 'האובייקט';
         dom.schemaFeedbackTitle.textContent = 'אימות סכמה עבר בהצלחה!';
         dom.schemaFeedbackMessageEl.textContent = `${objectStr} תואמ(ים) לסכמה שנבחרה.`;
         dom.schemaFeedback.hidden = false;
-    } else {
+        return;
+    }
+
+    // Build title
+    const titleParts = [];
+    if (validationErrors.length > 0) {
+        titleParts.push(`נמצאו ${validationErrors.length} שגיאות אימות`);
+    }
+    if (additionalPropWarnings.length > 0) {
+        titleParts.push(`${additionalPropWarnings.length} שדות מיותרים`);
+    }
+    dom.schemaFeedbackTitle.textContent = titleParts.join(' ו-') + ':';
+    
+    // Set main feedback style and icon
+    if (validationErrors.length > 0) {
         dom.schemaFeedback.classList.add('feedback-error');
         dom.schemaFeedbackIconEl.innerHTML = constants.ICONS.ERROR;
-        
-        dom.schemaFeedbackTitle.textContent = `נמצאו ${errors.length} שגיאות אימות סכמה:`;
-        
-        const errorListHtml = errors.slice(0, 10).map(error => {
-            const line = state.pathToLineMap ? state.pathToLineMap.get(error.path) : null;
-            const cssClass = line ? 'schema-error-line clickable' : 'schema-error-line';
-            const typeClass = error.type ? `schema-error-type-${error.type}` : '';
-            const dataAttr = line ? `data-line="${line}"` : '';
-            const sanitizedMessage = error.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            return `<div class="${cssClass} ${typeClass}" ${dataAttr}>- ${sanitizedMessage}</div>`;
-        }).join('');
-        
-        const extraErrors = errors.length > 10 ? `<div class="schema-error-line">...ועוד ${errors.length - 10} שגיאות.</div>` : '';
-        
-        dom.schemaFeedbackMessageEl.innerHTML = `${errorListHtml}${extraErrors}`;
-        dom.copySchemaErrorsBtn.hidden = false;
-        dom.schemaFeedback.hidden = false;
+    } else {
+        dom.schemaFeedback.classList.add('feedback-info');
+        dom.schemaFeedbackIconEl.innerHTML = constants.ICONS.IDLE;
     }
+
+    // Render validation errors
+    const errorListHtml = validationErrors.slice(0, 10).map(error => {
+        const line = state.pathToLineMap ? state.pathToLineMap.get(error.path) : null;
+        const cssClass = line ? 'schema-error-line clickable' : 'schema-error-line';
+        const typeClass = error.type ? `schema-error-type-${error.type}` : '';
+        const dataAttr = line ? `data-line="${line}"` : '';
+        const sanitizedMessage = error.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return `<div class="${cssClass} ${typeClass}" ${dataAttr}>- ${sanitizedMessage}</div>`;
+    }).join('');
+
+    const extraErrors = validationErrors.length > 10 ? `<div class="schema-error-line">...ועוד ${validationErrors.length - 10} שגיאות.</div>` : '';
+    
+    // Render additional property warnings
+    const warningListHtml = additionalPropWarnings.map(warning => {
+        const line = state.pathToLineMap ? state.pathToLineMap.get(warning.path) : null;
+        const cssClass = line ? 'schema-error-line clickable' : 'schema-error-line';
+        const typeClass = 'schema-error-type-additionalProperty';
+        const dataAttr = line ? `data-line="${line}"` : '';
+        const formattedPath = warning.path.replace(/\//g, ':');
+        const message = `שדה מיותר בנתיב: ${formattedPath}`;
+        return `<div class="${cssClass} ${typeClass}" ${dataAttr}>- ${message}</div>`;
+    }).join('');
+
+    dom.schemaFeedbackMessageEl.innerHTML = `${errorListHtml}${extraErrors}${warningListHtml}`;
+    dom.copySchemaErrorsBtn.hidden = validationErrors.length === 0;
+    dom.schemaFeedback.hidden = false;
 }
 
 /**
@@ -532,12 +579,13 @@ export function validateAndParseJson(options = {}) {
         const schema = state.schemaData[selectedSchemaKey];
         if (!schema) return;
 
+        const checkAdditional = dom.additionalPropsToggle.checked;
         const dataToValidate = Array.isArray(parsedData) ? parsedData : [parsedData];
         let allErrors = [];
         
         for (let i = 0; i < dataToValidate.length; i++) {
             const item = dataToValidate[i];
-            const errors = validateJsonAgainstSchema(item, schema);
+            const errors = validateJsonAgainstSchema(item, schema, checkAdditional);
             if (errors.length > 0) {
                 if (dataToValidate.length > 1) {
                     allErrors.push(...errors.map(e => ({...e, message: `[אובייקט ${i + 1}] ${e.message}`})));

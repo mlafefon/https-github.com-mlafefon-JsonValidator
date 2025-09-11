@@ -30,7 +30,11 @@ dom.jsonInput.addEventListener('paste', () => {
 dom.jsonInput.addEventListener('scroll', editor.handleScroll);
 dom.beautifyBtn.addEventListener('click', editor.beautifyJson);
 dom.minifyBtn.addEventListener('click', editor.minifyJson);
-dom.schemaValidatorSelect.addEventListener('change', editor.validateAndParseJson);
+dom.schemaValidatorSelect.addEventListener('change', () => {
+    editor.validateAndParseJson();
+    schemaEditor.updateSelectColor(dom.schemaValidatorSelect);
+});
+dom.additionalPropsToggle.addEventListener('change', editor.validateAndParseJson);
 
 // File Loading
 dom.loadFileBtn.addEventListener('click', () => dom.fileInput.click());
@@ -75,6 +79,10 @@ dom.schemaFeedback.addEventListener('click', (e) => {
         }
     }
 });
+
+if (dom.schemaFeedbackResizer) {
+    dom.schemaFeedbackResizer.addEventListener('mousedown', initFeedbackResize);
+}
 
 dom.copySchemaErrorsBtn.addEventListener('click', () => {
     const errorNodes = dom.schemaFeedbackMessageEl.querySelectorAll('.schema-error-line');
@@ -172,7 +180,10 @@ dom.schemaEditorModal.addEventListener('click', (e) => { if (e.target === dom.sc
 dom.uploadSchemaBtn.addEventListener('click', () => dom.schemaFileInput.click());
 dom.schemaFileInput.addEventListener('change', schemaEditor.handleSchemaFileUpload);
 dom.createNewSchemaBtn.addEventListener('click', schemaEditor.handleCreateNewSchema);
-dom.schemaEditSelect.addEventListener('change', schemaEditor.loadSchemaForEditing);
+dom.schemaEditSelect.addEventListener('change', () => {
+    schemaEditor.loadSchemaForEditing();
+    schemaEditor.updateSelectColor(dom.schemaEditSelect);
+});
 dom.saveSchemaBtn.addEventListener('click', schemaEditor.saveSchema);
 dom.downloadSchemaBtn.addEventListener('click', schemaEditor.downloadSchemaFile);
 dom.addSchemaFieldBtn.addEventListener('click', () => schemaEditor.openAddFieldModal(dom.fieldsContainer));
@@ -218,6 +229,41 @@ dom.confirmSaveCloseBtn.addEventListener('click', () => {
 
 
 // --- APP-WIDE ---
+function initFeedbackResize(e) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+
+    const startY = e.clientY;
+    const startHeight = dom.schemaFeedback.offsetHeight;
+    const editorPane = dom.schemaFeedback.closest('.editor-pane');
+
+    const computedStyle = getComputedStyle(dom.schemaFeedback);
+    const minHeight = parseInt(computedStyle.minHeight, 10) || 48;
+    const maxHeight = editorPane ? editorPane.offsetHeight - 150 : 500;
+
+    const doResize = (moveEvent) => {
+        const dy = moveEvent.clientY - startY;
+        let newHeight = startHeight - dy;
+
+        if (newHeight < minHeight) newHeight = minHeight;
+        if (newHeight > maxHeight) newHeight = maxHeight;
+        
+        dom.schemaFeedback.style.height = `${newHeight}px`;
+    };
+
+    const stopResize = () => {
+        window.removeEventListener('mousemove', doResize);
+        window.removeEventListener('mouseup', stopResize);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', doResize);
+    window.addEventListener('mouseup', stopResize);
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+}
+
 function initResize(e) {
     if (e.button !== 0) return;
     e.preventDefault();

@@ -220,8 +220,8 @@ body {
 .upload-button { background-color: var(--accent-teal); }
 .upload-button:hover { background-color: var(--accent-teal-hover); }
 
-.manage-button { background-color: var(--accent-purple); }
-.manage-button:hover { background-color: var(--accent-purple-hover); }
+.manage-button { background-color: var(--accent-orange); }
+.manage-button:hover { background-color: var(--accent-orange-hover); }
 
 .save-button { background-color: var(--accent-green); }
 .save-button:hover { background-color: var(--accent-green-hover); }
@@ -252,7 +252,33 @@ body {
     color: var(--text-color-light);
     background-color: var(--bg-color-subtle);
     border: 1px solid var(--border-color-strong);
+    transition: var(--transition-fast);
+    transition-property: background-color, border-color;
 }
+
+.schema-select optgroup {
+    font-weight: bold;
+    color: var(--text-color-medium);
+}
+
+.user-schema-option {
+    color: var(--accent-orange-hover);
+}
+
+.default-schema-option {
+    color: var(--accent-blue-hover);
+}
+
+.schema-select.user-schema-selected {
+    background-color: color-mix(in srgb, var(--accent-orange) 15%, var(--bg-color-subtle));
+    border-color: var(--accent-orange);
+}
+
+.schema-select.default-schema-selected {
+    background-color: color-mix(in srgb, var(--accent-blue) 15%, var(--bg-color-subtle));
+    border-color: var(--accent-blue);
+}
+
 
 /* --- Editor Pane --- */
 .editor-container {
@@ -338,6 +364,42 @@ body {
     white-space: pre-wrap;
     word-break: break-word;
 }
+
+#schema-feedback {
+    min-height: 48px;
+    max-height: 70vh;
+    overflow-y: auto;
+    flex-shrink: 0;
+    position: relative;
+    padding-top: var(--space-md);
+}
+
+.feedback-resizer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 10px;
+    cursor: row-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.feedback-resizer::after {
+    content: '';
+    width: 40px;
+    height: 4px;
+    background-color: var(--border-color);
+    border-radius: 2px;
+    transition: var(--transition-fast);
+}
+
+.feedback-resizer:hover::after {
+    background-color: var(--accent-blue);
+}
+
 .feedback-display[hidden], .error-display[hidden] { display: none; }
 .feedback-display > div:first-child, .error-display > div:first-child { flex-shrink: 0; margin-top: 2px; }
 
@@ -366,6 +428,7 @@ body {
 
 .feedback-display.feedback-success { background-color: rgba(74, 222, 128, 0.1); border-color: var(--accent-green); color: var(--accent-green); direction: rtl; text-align: right; }
 .feedback-display.feedback-error { background-color: rgba(248, 113, 113, 0.1); border-color: var(--accent-red); color: var(--accent-red); direction: rtl; text-align: right; }
+.feedback-display.feedback-info { background-color: rgba(56, 189, 248, 0.1); border-color: var(--accent-blue); color: var(--accent-blue); direction: rtl; text-align: right; }
 
 .error-display { background-color: rgba(248, 113, 113, 0.1); border-color: var(--accent-red); color: var(--accent-red); direction: rtl; text-align: right; transition: background-color var(--transition-fast); }
 .error-display.clickable { cursor: pointer; }
@@ -382,6 +445,10 @@ body {
 
 .schema-error-type-missingProperty {
     color: var(--accent-orange);
+}
+
+.schema-error-type-additionalProperty {
+    color: var(--accent-blue);
 }
 
 .icon-button {

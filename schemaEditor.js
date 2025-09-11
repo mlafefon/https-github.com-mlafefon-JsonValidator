@@ -51,31 +51,76 @@ function generateKeyFromTitle(title) {
         .join('');
 }
 
+export function updateSelectColor(selectElement) {
+    if (!selectElement) return;
+    const selectedIndex = selectElement.selectedIndex;
+    
+    selectElement.classList.remove('user-schema-selected', 'default-schema-selected');
+
+    if (selectedIndex > 0 && selectElement.options[selectedIndex]) { // Ignore placeholder & check existence
+        const selectedOption = selectElement.options[selectedIndex];
+        if (selectedOption.classList.contains('user-schema-option')) {
+            selectElement.classList.add('user-schema-selected');
+        } else if (selectedOption.classList.contains('default-schema-option')) {
+            selectElement.classList.add('default-schema-selected');
+        }
+    }
+}
+
 function populateSchemaSelects() {
     const selects = [dom.schemaValidatorSelect, dom.schemaEditSelect];
-    const keys = state.schemaData ? Object.keys(state.schemaData) : [];
+    const allKeys = state.schemaData ? Object.keys(state.schemaData).sort() : [];
+
+    const userSchemaKeys = allKeys.filter(key => !state.defaultSchemaKeys.has(key));
+    const defaultSchemaKeys = allKeys.filter(key => state.defaultSchemaKeys.has(key));
 
     selects.forEach(select => {
         const currentVal = select.value;
-        while (select.options.length > 1) {
-            select.remove(1);
-        }
+        
+        const placeholder = select.options[0];
+        select.innerHTML = '';
+        select.appendChild(placeholder);
 
-        if (keys.length === 0) {
-            select.options[0].textContent = 'אין סכמות';
+        if (allKeys.length === 0) {
+            placeholder.textContent = 'אין סכמות';
             select.disabled = true;
-        } else {
-            select.options[0].textContent = select.id === 'schema-edit-select' ? 'בחר סכמה לעריכה...' : 'בחר סכמה';
-            select.disabled = false;
-
-            keys.sort().forEach(key => {
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = state.schemaData[key].title || key;
-                select.appendChild(option);
-            });
+            select.value = '';
+            return;
         }
-        select.value = currentVal && keys.includes(currentVal) ? currentVal : '';
+        
+        placeholder.textContent = select.id === 'schema-edit-select' ? 'בחר סכמה לעריכה...' : 'בחר סכמה';
+        select.disabled = false;
+
+        const createOption = (key, isDefault) => {
+            const option = document.createElement('option');
+            option.value = key;
+            option.textContent = state.schemaData[key].title || key;
+            option.className = isDefault ? 'default-schema-option' : 'user-schema-option';
+            return option;
+        };
+
+        if (userSchemaKeys.length > 0) {
+            const userOptgroup = document.createElement('optgroup');
+            userOptgroup.label = 'סכמות שלי';
+            userSchemaKeys.forEach(key => userOptgroup.appendChild(createOption(key, false)));
+            select.appendChild(userOptgroup);
+        }
+
+        if (defaultSchemaKeys.length > 0) {
+            const defaultOptgroup = document.createElement('optgroup');
+            defaultOptgroup.label = 'סכמות ברירת מחדל';
+            defaultSchemaKeys.forEach(key => defaultOptgroup.appendChild(createOption(key, true)));
+            select.appendChild(defaultOptgroup);
+        }
+        
+        // Restore previous value if possible
+        if (allKeys.includes(currentVal)) {
+            select.value = currentVal;
+        } else {
+            select.value = '';
+        }
+        
+        updateSelectColor(select);
     });
 }
 
@@ -245,13 +290,13 @@ function renderFieldDetails(fieldRow, type, initialData = {}) {
             const addButton = document.createElement('button');
             addButton.type = 'button';
             addButton.className = 'action-button add-field-button-nested';
-            addButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1rem; height: 1rem;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg><span>${type === 'object' ? 'הוסף שדה' : 'הוסף מאפיין'}</span>`;
+            addButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1rem; height: 1rem;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg><span>${type === 'object' ? 'הוסף שדה' : 'הוסף שדה'}</span>`;
             actionsContainer.appendChild(addButton);
         }
         if (childrenContainer.children.length === 0 && !childrenContainer.querySelector('.field-placeholder')) {
              const placeholder = document.createElement('div');
              placeholder.className = 'field-placeholder';
-             placeholder.textContent = type === 'object' ? 'אין שדות מוגדרים' : 'אין מאפיינים מוגדרים';
+             placeholder.textContent = type === 'object' ? 'אין שדות מוגדרים' : 'אין שדות מוגדרים';
              childrenContainer.appendChild(placeholder);
         }
     }
@@ -629,18 +674,10 @@ export function saveSchema() {
         return false;
     }
 
-    const oldKey = state.currentEditingSchemaKey;
-    const newKey = generateKeyFromTitle(title);
     buildSchemaFromUI();
     const content = dom.schemaContentTextarea.value.trim();
-
     if (!content) {
         displaySchemaEditorFeedback('error', 'תוכן הסכמה לא יכול להיות ריק.');
-        return false;
-    }
-    
-    if (state.schemaData && state.schemaData[newKey] && newKey !== state.currentEditingSchemaKey) {
-        displaySchemaEditorFeedback('error', `סכמה עם הכותרת '${title}' כבר קיימת. בחר כותרת אחרת.`);
         return false;
     }
 
@@ -651,27 +688,50 @@ export function saveSchema() {
         displaySchemaEditorFeedback('error', `תוכן הסכמה אינו JSON תקין: ${e.message}`);
         return false;
     }
-    
-    if (state.isEditingExistingSchema && state.currentEditingSchemaKey && newKey !== state.currentEditingSchemaKey) {
-        delete state.schemaData[state.currentEditingSchemaKey];
+
+    let newKey = generateKeyFromTitle(title);
+    const oldKey = state.currentEditingSchemaKey;
+    const isEditingDefault = state.defaultSchemaKeys.has(oldKey);
+
+    // If editing a default schema with an unchanged title, force a new key by creating a copy.
+    if (isEditingDefault && newKey === oldKey) {
+        const newTitle = `${title} Copy`;
+        dom.schemaTitleInput.value = newTitle;
+        parsedContent.title = newTitle;
+        newKey = generateKeyFromTitle(newTitle);
     }
+    
+    // A conflict exists if the new key already belongs to another schema.
+    if (state.schemaData[newKey] && newKey !== oldKey) {
+        displaySchemaEditorFeedback('error', `סכמה עם הכותרת '${parsedContent.title}' כבר קיימת. בחר כותרת אחרת.`);
+        return false;
+    }
+    
+    // If renaming a user schema (not a default one), remove the old entry.
+    if (state.isEditingExistingSchema && !isEditingDefault && oldKey && newKey !== oldKey) {
+        delete state.schemaData[oldKey];
+    }
+    
+    // Save the new or updated schema.
     state.schemaData[newKey] = parsedContent;
 
     try {
         localStorage.setItem(constants.LS_SCHEMA_KEY, JSON.stringify(state.schemaData));
-        state.initialSchemaStateOnLoad = content;
         
+        state.initialSchemaStateOnLoad = JSON.stringify(parsedContent, null, 2);
+        dom.schemaContentTextarea.value = state.initialSchemaStateOnLoad;
+        state.currentEditingSchemaKey = newKey;
+        state.isEditingExistingSchema = true;
+
         populateSchemaSelects();
         
         dom.schemaEditSelect.value = newKey;
-        if (dom.schemaValidatorSelect.value === oldKey) {
+        // If the main validator was using the old schema, switch it to the new one.
+        if (dom.schemaValidatorSelect.value === oldKey && newKey !== oldKey) {
             dom.schemaValidatorSelect.value = newKey;
         }
 
         displaySchemaEditorFeedback('success', 'הסכמה נשמרה בהצלחה!');
-        state.currentEditingSchemaKey = newKey;
-        state.isEditingExistingSchema = true;
-
         validateAndParseJson();
         return true;
 
@@ -890,42 +950,54 @@ export function handleCreateNewSchema() {
 export async function initializeSchemaValidator() {
     try {
         const storedSchemas = localStorage.getItem(constants.LS_SCHEMA_KEY);
-        if (storedSchemas) {
-            state.schemaData = JSON.parse(storedSchemas);
-        } else {
-            console.log("No schemas in localStorage, fetching from schema directory...");
-            state.schemaData = {};
-            const indexResponse = await fetch('./schema/index.json');
-            if (!indexResponse.ok) {
-                throw new Error(`Could not fetch schema/index.json: ${indexResponse.statusText}`);
-            }
-            const schemaFiles = await indexResponse.json();
-
-            const schemaPromises = schemaFiles.map(async (filename) => {
+        // Always load default schemas first to populate the `defaultSchemaKeys` set
+        console.log("Fetching default schemas from schema directory...");
+        const indexResponse = await fetch('./schema/index.json');
+        if (!indexResponse.ok) {
+            throw new Error(`Could not fetch schema/index.json: ${indexResponse.statusText}`);
+        }
+        const schemaFiles = await indexResponse.json();
+        const defaultSchemas = {};
+        
+        const schemaPromises = schemaFiles.map(async (filename) => {
+            try {
                 const schemaResponse = await fetch(`./schema/${filename}`);
                 if (!schemaResponse.ok) {
-                    console.error(`Failed to fetch schema/${filename}`);
+                     console.error(`Failed to fetch schema/${filename}`);
                     return null;
                 }
                 const schemaContent = await schemaResponse.json();
                 const schemaKey = filename.replace('.json', '');
+                state.defaultSchemaKeys.add(schemaKey);
                 return { key: schemaKey, content: schemaContent };
-            });
-
-            const results = await Promise.all(schemaPromises);
-            results.forEach(result => {
-                if (result) {
-                    state.schemaData[result.key] = result.content;
-                }
-            });
-
-            if (Object.keys(state.schemaData).length > 0) {
-                localStorage.setItem(constants.LS_SCHEMA_KEY, JSON.stringify(state.schemaData));
+            } catch (e) {
+                console.error(`Error processing schema file ${filename}:`, e);
+                return null;
             }
+        });
+
+        const results = await Promise.all(schemaPromises);
+        results.forEach(result => {
+            if (result) {
+                defaultSchemas[result.key] = result.content;
+            }
+        });
+        
+        // Start with default schemas, then merge/overwrite with user's stored schemas
+        state.schemaData = { ...defaultSchemas };
+
+        if (storedSchemas) {
+            console.log("Found schemas in localStorage, merging them.");
+            const userSchemas = JSON.parse(storedSchemas);
+            state.schemaData = { ...state.schemaData, ...userSchemas };
+        } else {
+             // If no user schemas, we can pre-populate localStorage with defaults for next time
+             localStorage.setItem(constants.LS_SCHEMA_KEY, JSON.stringify(defaultSchemas));
         }
+
     } catch (e) {
         console.error("Could not load or parse schema data:", e);
-        state.schemaData = {};
+        state.schemaData = {}; // Fallback to empty
     }
 
     populateSchemaSelects();
@@ -1006,13 +1078,13 @@ export function handleVisualBuilderChanges(e) {
                 const addButton = document.createElement('button');
                 addButton.type = 'button';
                 addButton.className = 'action-button add-field-button-nested';
-                addButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1rem; height: 1rem;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg><span>הוסף מאפיין</span>';
+                addButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 1rem; height: 1rem;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg><span>הוסף שדה</span>';
                 actionsContainer.appendChild(addButton);
             }
             if (childrenContainer.children.length === 0 && !childrenContainer.querySelector('.field-placeholder')) {
                  const placeholder = document.createElement('div');
                  placeholder.className = 'field-placeholder';
-                 placeholder.textContent = 'אין מאפיינים מוגדרים';
+                 placeholder.textContent = 'אין שדות מוגדרים';
                  childrenContainer.appendChild(placeholder);
             }
         }

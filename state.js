@@ -12,4 +12,5 @@ export const state = {
     initialSchemaStateOnLoad: '',
     currentParentForNewField: null,
     pathToLineMap: null,
+    defaultSchemaKeys: new Set(),
 };

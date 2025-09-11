@@ -17,6 +17,7 @@ export const schemaFeedbackIconEl = document.getElementById('schema-feedback-ico
 export const schemaFeedbackTitle = document.getElementById('schema-feedback-title');
 export const schemaFeedbackMessageEl = document.getElementById('schema-feedback-message');
 export const copySchemaErrorsBtn = document.getElementById('copy-schema-errors-btn');
+export const schemaFeedbackResizer = document.getElementById('schema-feedback-resizer');
 export const resizer = document.getElementById('resizer');
 export const mainContent = document.querySelector('.main-content');
 export const editorPane = document.querySelector('.editor-pane');
@@ -49,6 +50,7 @@ export const schemaEditorFormContainer = document.getElementById('schema-editor-
 export const schemaEditorFooter = document.getElementById('schema-editor-footer');
 export const schemaFieldSearchInput = document.getElementById('schema-field-search-input');
 export const schemaFieldSearchBtn = document.getElementById('schema-field-search-btn');
+export const additionalPropsToggle = document.getElementById('additional-props-toggle');
 
 // --- SCHEMA EDITOR TABS ---
 export const schemaContentTab = document.getElementById('schema-content-tab');
