@@ -11,7 +11,6 @@ export const appVersion = document.getElementById('app-version');
 export const errorDisplay = document.getElementById('error-display');
 export const errorIconEl = document.getElementById('error-icon');
 export const errorMessageEl = document.getElementById('error-message');
-export const schemaValidatorSelect = document.getElementById('schema-validator-select');
 export const schemaFeedback = document.getElementById('schema-feedback');
 export const schemaFeedbackIconEl = document.getElementById('schema-feedback-icon');
 export const schemaFeedbackTitle = document.getElementById('schema-feedback-title');
@@ -34,7 +33,6 @@ export const fileInput = document.getElementById('file-input');
 export const manageSchemasBtn = document.getElementById('manage-schemas-btn');
 export const schemaEditorModal = document.getElementById('schema-editor-modal');
 export const closeModalBtn = document.getElementById('close-modal-btn');
-export const schemaEditSelect = document.getElementById('schema-edit-select');
 export const createNewSchemaBtn = document.getElementById('create-new-schema-btn');
 export const schemaTitleInput = document.getElementById('schema-title-input');
 export const schemaDescriptionInput = document.getElementById('schema-description-input');
@@ -51,6 +49,14 @@ export const schemaEditorFooter = document.getElementById('schema-editor-footer'
 export const schemaFieldSearchInput = document.getElementById('schema-field-search-input');
 export const schemaFieldSearchBtn = document.getElementById('schema-field-search-btn');
 export const additionalPropsToggle = document.getElementById('additional-props-toggle');
+
+// --- CUSTOM SCHEMA DROPDOWNS ---
+export const schemaValidatorDropdown = document.getElementById('schema-validator-dropdown');
+export const schemaValidatorSelectBtn = document.getElementById('schema-validator-select-btn');
+export const schemaValidatorOptions = document.getElementById('schema-validator-options');
+export const schemaEditDropdown = document.getElementById('schema-edit-dropdown');
+export const schemaEditSelectBtn = document.getElementById('schema-edit-select-btn');
+export const schemaEditOptions = document.getElementById('schema-edit-options');
 
 // --- SCHEMA EDITOR TABS ---
 export const schemaContentTab = document.getElementById('schema-content-tab');

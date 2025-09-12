@@ -51,78 +51,168 @@ function generateKeyFromTitle(title) {
         .join('');
 }
 
-export function updateSelectColor(selectElement) {
-    if (!selectElement) return;
-    const selectedIndex = selectElement.selectedIndex;
+function updateDropdownButtonState(button, selectedKey, placeholder) {
+    if (!button) return;
+    const textSpan = button.querySelector('span');
+    button.classList.remove('user-schema-selected', 'default-schema-selected');
     
-    selectElement.classList.remove('user-schema-selected', 'default-schema-selected');
+    if (selectedKey && state.schemaData && state.schemaData[selectedKey]) {
+        const schema = state.schemaData[selectedKey];
+        textSpan.textContent = schema.title || selectedKey;
+        button.dataset.value = selectedKey;
 
-    if (selectedIndex > 0 && selectElement.options[selectedIndex]) { // Ignore placeholder & check existence
-        const selectedOption = selectElement.options[selectedIndex];
-        if (selectedOption.classList.contains('user-schema-option')) {
-            selectElement.classList.add('user-schema-selected');
-        } else if (selectedOption.classList.contains('default-schema-option')) {
-            selectElement.classList.add('default-schema-selected');
+        if (state.defaultSchemaKeys.has(selectedKey)) {
+            button.classList.add('default-schema-selected');
+        } else {
+            button.classList.add('user-schema-selected');
         }
+    } else {
+        textSpan.textContent = placeholder;
+        button.dataset.value = '';
     }
 }
 
-function populateSchemaSelects() {
-    const selects = [dom.schemaValidatorSelect, dom.schemaEditSelect];
+function populateCustomDropdowns() {
+    const dropdowns = [
+        { options: dom.schemaValidatorOptions, button: dom.schemaValidatorSelectBtn, placeholder: 'בחר סוג' },
+        { options: dom.schemaEditOptions, button: dom.schemaEditSelectBtn, placeholder: 'בחר סכמה לעריכה...' }
+    ];
+    
     const allKeys = state.schemaData ? Object.keys(state.schemaData).sort() : [];
-
     const userSchemaKeys = allKeys.filter(key => !state.defaultSchemaKeys.has(key));
     const defaultSchemaKeys = allKeys.filter(key => state.defaultSchemaKeys.has(key));
 
-    selects.forEach(select => {
-        const currentVal = select.value;
-        
-        const placeholder = select.options[0];
-        select.innerHTML = '';
-        select.appendChild(placeholder);
+    dropdowns.forEach(({ options, button, placeholder }) => {
+        const currentVal = button.dataset.value;
+        options.innerHTML = '';
 
-        if (allKeys.length === 0) {
-            placeholder.textContent = 'אין סכמות';
-            select.disabled = true;
-            select.value = '';
-            return;
+        const isValidator = button === dom.schemaValidatorSelectBtn;
+
+        // Add reset option for the validator dropdown.
+        if (isValidator) {
+            const resetItem = document.createElement('div');
+            resetItem.className = 'custom-dropdown-item';
+            resetItem.textContent = 'ללא אימות';
+            resetItem.dataset.value = '';
+            resetItem.setAttribute('role', 'menuitemradio');
+            options.appendChild(resetItem);
         }
         
-        placeholder.textContent = select.id === 'schema-edit-select' ? 'בחר סכמה לעריכה...' : 'בחר סכמה';
-        select.disabled = false;
+        if (allKeys.length === 0) {
+            if (!isValidator) { // Only disable the edit dropdown if there are no schemas
+                updateDropdownButtonState(button, '', 'אין סכמות');
+                button.disabled = true;
+                return;
+            }
+        }
 
-        const createOption = (key, isDefault) => {
-            const option = document.createElement('option');
-            option.value = key;
-            option.textContent = state.schemaData[key].title || key;
-            option.className = isDefault ? 'default-schema-option' : 'user-schema-option';
-            return option;
+        button.disabled = false;
+
+        const createItem = (key, isDefault) => {
+            const item = document.createElement('div');
+            item.className = 'custom-dropdown-item';
+            item.textContent = state.schemaData[key].title || key;
+            item.dataset.value = key;
+            item.classList.add(isDefault ? 'default-schema-option' : 'user-schema-option');
+            item.setAttribute('role', 'menuitemradio');
+            return item;
         };
+        
+        const groupedDefaultSchemas = defaultSchemaKeys.reduce((acc, key) => {
+            const groupName = state.defaultSchemaGroupMap.get(key) || 'Default Schemas';
+            if (!acc[groupName]) acc[groupName] = [];
+            acc[groupName].push(key);
+            return acc;
+        }, {});
+        
+        Object.keys(groupedDefaultSchemas).sort().forEach(groupName => {
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'custom-dropdown-group';
+            groupDiv.setAttribute('role', 'menuitem');
+            groupDiv.setAttribute('aria-haspopup', 'true');
+            
+            const groupText = document.createElement('span');
+            groupText.textContent = groupName;
+            
+            const arrow = document.createElement('span');
+            arrow.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width:1.25em; height:1.25em;"><path fill-rule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd" /></svg>`;
+            
+            const submenu = document.createElement('div');
+            submenu.className = 'submenu-options';
+            submenu.setAttribute('role', 'menu');
+
+            groupedDefaultSchemas[groupName].forEach(key => {
+                submenu.appendChild(createItem(key, true));
+            });
+            
+            groupDiv.appendChild(groupText);
+            groupDiv.appendChild(arrow);
+            groupDiv.appendChild(submenu);
+            options.appendChild(groupDiv);
+        });
 
         if (userSchemaKeys.length > 0) {
-            const userOptgroup = document.createElement('optgroup');
-            userOptgroup.label = 'סכמות שלי';
-            userSchemaKeys.forEach(key => userOptgroup.appendChild(createOption(key, false)));
-            select.appendChild(userOptgroup);
-        }
-
-        if (defaultSchemaKeys.length > 0) {
-            const defaultOptgroup = document.createElement('optgroup');
-            defaultOptgroup.label = 'סכמות ברירת מחדל';
-            defaultSchemaKeys.forEach(key => defaultOptgroup.appendChild(createOption(key, true)));
-            select.appendChild(defaultOptgroup);
+            const separator = document.createElement('div');
+            separator.className = 'custom-dropdown-separator';
+            separator.textContent = 'סכמות שלי';
+            options.appendChild(separator);
+            userSchemaKeys.forEach(key => options.appendChild(createItem(key, false)));
         }
         
-        // Restore previous value if possible
-        if (allKeys.includes(currentVal)) {
-            select.value = currentVal;
-        } else {
-            select.value = '';
-        }
-        
-        updateSelectColor(select);
+        updateDropdownButtonState(button, currentVal, placeholder);
     });
 }
+
+function initializeCustomDropdown(dropdownContainer, button, options, onSelect) {
+    button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isExpanded = button.getAttribute('aria-expanded') === 'true';
+        options.hidden = isExpanded;
+        button.setAttribute('aria-expanded', !isExpanded);
+    });
+
+    options.addEventListener('click', (e) => {
+        const item = e.target.closest('.custom-dropdown-item');
+        if (item && item.dataset.value !== undefined) {
+            const value = item.dataset.value;
+            if (onSelect) {
+                onSelect(value);
+            }
+            options.hidden = true;
+            button.setAttribute('aria-expanded', 'false');
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!dropdownContainer.contains(e.target)) {
+            options.hidden = true;
+            button.setAttribute('aria-expanded', 'false');
+        }
+    });
+}
+
+export function initializeCustomDropdowns() {
+    initializeCustomDropdown(
+        dom.schemaValidatorDropdown,
+        dom.schemaValidatorSelectBtn,
+        dom.schemaValidatorOptions,
+        (value) => {
+            updateDropdownButtonState(dom.schemaValidatorSelectBtn, value, 'בחר סוג');
+            validateAndParseJson();
+        }
+    );
+    
+    initializeCustomDropdown(
+        dom.schemaEditDropdown,
+        dom.schemaEditSelectBtn,
+        dom.schemaEditOptions,
+        (value) => {
+            updateDropdownButtonState(dom.schemaEditSelectBtn, value, 'בחר סכמה לעריכה...');
+            loadSchemaForEditing(value);
+        }
+    );
+}
+
 
 function displaySchemaEditorFeedback(type, message) {
     dom.schemaEditorFeedback.hidden = false;
@@ -622,7 +712,7 @@ export function updateVisualBuilderFromRaw() {
 }
 
 function clearSchemaEditorForm() {
-    dom.schemaEditSelect.value = '';
+    updateDropdownButtonState(dom.schemaEditSelectBtn, '', 'בחר סכמה לעריכה...');
     dom.schemaTitleInput.value = '';
     dom.schemaDescriptionInput.value = '';
     dom.schemaContentTextarea.value = '';
@@ -638,8 +728,7 @@ function clearSchemaEditorForm() {
     clearFieldSearchHighlights();
 }
 
-export function loadSchemaForEditing() {
-    const key = dom.schemaEditSelect.value;
+export function loadSchemaForEditing(key) {
     dom.schemaEditorFeedback.hidden = true;
     state.currentEditingSchemaKey = key;
     dom.schemaFieldSearchInput.value = '';
@@ -723,12 +812,16 @@ export function saveSchema() {
         state.currentEditingSchemaKey = newKey;
         state.isEditingExistingSchema = true;
 
-        populateSchemaSelects();
+        populateCustomDropdowns();
         
-        dom.schemaEditSelect.value = newKey;
-        // If the main validator was using the old schema, switch it to the new one.
-        if (dom.schemaValidatorSelect.value === oldKey && newKey !== oldKey) {
-            dom.schemaValidatorSelect.value = newKey;
+        updateDropdownButtonState(dom.schemaEditSelectBtn, newKey, 'בחר סכמה לעריכה...');
+        
+        const validatorButton = dom.schemaValidatorSelectBtn;
+        const isNewSchema = oldKey === null;
+        const isRenamedAndSelected = !isNewSchema && oldKey !== newKey && validatorButton.dataset.value === oldKey;
+
+        if (isNewSchema || isRenamedAndSelected) {
+            updateDropdownButtonState(validatorButton, newKey, 'בחר סוג');
         }
 
         displaySchemaEditorFeedback('success', 'הסכמה נשמרה בהצלחה!');
@@ -787,19 +880,21 @@ function switchTab(tabId) {
 }
 
 export function openSchemaEditor() {
-    const selectedSchemaKey = dom.schemaValidatorSelect.value;
+    const selectedSchemaKey = dom.schemaValidatorSelectBtn.dataset.value;
     dom.schemaEditorModal.hidden = false;
     dom.schemaFieldSearchInput.value = '';
     clearFieldSearchHighlights();
-    populateSchemaSelects();
+    populateCustomDropdowns();
+    
     if (selectedSchemaKey && state.schemaData && state.schemaData[selectedSchemaKey]) {
-        dom.schemaEditSelect.value = selectedSchemaKey;
-        loadSchemaForEditing();
+        updateDropdownButtonState(dom.schemaEditSelectBtn, selectedSchemaKey, 'בחר סכמה לעריכה...');
+        loadSchemaForEditing(selectedSchemaKey);
     } else {
         clearSchemaEditorForm();
         dom.schemaEditorFormContainer.hidden = true;
         dom.schemaEditorFooter.hidden = true;
     }
+
     updateLineNumbersForTextarea(dom.schemaContentTextarea, dom.schemaContentLineNumbers);
     updateLineNumbersForTextarea(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);
     handleTextareaScroll(dom.schemaContentTextarea, dom.schemaContentLineNumbers);
@@ -877,52 +972,63 @@ async function generateSchemaFromObject(data) {
     return { type: typeof data };
 }
 
+async function _inferSchemaFromFileData(data, filename) {
+    const isSchema = data && typeof data === 'object' && !Array.isArray(data) && (data.hasOwnProperty('$schema') || data.hasOwnProperty('properties'));
+    
+    if (isSchema) {
+        const schema = { ...data };
+        if (!schema.title) {
+            schema.title = filename.replace(/\.json$/i, '');
+        }
+        return schema;
+    }
+
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+        displaySchemaEditorFeedback('success', 'קובץ JSON רגיל זוהה. מתבצעת המרה אוטומטית לסכמה.');
+        const inferredSchema = await generateSchemaFromObject(data);
+        const title = filename.replace(/\.json$/i, '');
+        return {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": title,
+            "description": `סכמה שנוצרה אוטומטית מהקובץ ${filename}`,
+            "type": "object",
+            "properties": inferredSchema.properties,
+            ...(inferredSchema.required && inferredSchema.required.length > 0 && { required: inferredSchema.required }),
+        };
+    }
+    
+    throw new Error("לא ניתן להמיר את קובץ ה-JSON. יש להעלות אובייקט JSON.");
+}
+
 export function handleSchemaFileUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
+    reader.onerror = () => displaySchemaEditorFeedback('error', `שגיאה בקריאת הקובץ: ${reader.error.message}`);
     reader.onload = async (e) => {
         try {
             const loadedJson = JSON.parse(e.target.result);
+            const schemaToLoad = await _inferSchemaFromFileData(loadedJson, file.name);
+
             clearSchemaEditorForm();
             dom.schemaFieldSearchInput.value = '';
             clearFieldSearchHighlights();
             dom.schemaEditorFormContainer.hidden = false;
             dom.schemaEditorFooter.hidden = false;
-            const isSchema = loadedJson && typeof loadedJson === 'object' && !Array.isArray(loadedJson) && (loadedJson.hasOwnProperty('$schema') || loadedJson.hasOwnProperty('properties'));
-            let schemaToLoad;
-            let titleToSet = file.name.replace(/\.json$/i, '');
-            if (isSchema) {
-                schemaToLoad = loadedJson;
-                if (schemaToLoad.title) titleToSet = schemaToLoad.title; else schemaToLoad.title = titleToSet;
-            } else if (loadedJson && typeof loadedJson === 'object' && !Array.isArray(loadedJson)) {
-                displaySchemaEditorFeedback('success', 'קובץ JSON רגיל זוהה. מתבצעת המרה אוטומטית לסכמה.');
-                
-                const inferredSchema = await generateSchemaFromObject(loadedJson);
             
-                const newSchema = {
-                    "$schema": "http://json-schema.org/draft-07/schema#",
-                    "title": titleToSet, 
-                    "description": `סכמה שנוצרה אוטומטית מהקובץ ${file.name}`,
-                    "type": "object", 
-                    "properties": inferredSchema.properties,
-                };
-                if (inferredSchema.required && inferredSchema.required.length > 0) {
-                    newSchema.required = inferredSchema.required;
-                }
-                
-                schemaToLoad = newSchema;
-            } else throw new Error("לא ניתן להמיר את קובץ ה-JSON. יש להעלות אובייקט JSON.");
-
             const schemaString = JSON.stringify(schemaToLoad, null, 2);
             dom.schemaContentTextarea.value = schemaString;
             state.initialSchemaStateOnLoad = schemaString;
             updateVisualBuilderFromRaw();
             state.isEditingExistingSchema = false;
             state.currentEditingSchemaKey = null;
-        } catch (err) { displaySchemaEditorFeedback('error', `קובץ לא תקין. ${err.message}`); }
+
+        } catch (err) {
+            displaySchemaEditorFeedback('error', `קובץ לא תקין. ${err.message}`);
+        }
     };
-    reader.onerror = () => displaySchemaEditorFeedback('error', `שגיאה בקריאת הקובץ: ${reader.error.message}`);
+
     reader.readAsText(file);
     event.target.value = '';
 }
@@ -956,25 +1062,28 @@ export async function initializeSchemaValidator() {
         if (!indexResponse.ok) {
             throw new Error(`Could not fetch schema/index.json: ${indexResponse.statusText}`);
         }
-        const schemaFiles = await indexResponse.json();
+        const schemaGroups = await indexResponse.json();
         const defaultSchemas = {};
         
-        const schemaPromises = schemaFiles.map(async (filename) => {
-            try {
-                const schemaResponse = await fetch(`./schema/${filename}`);
-                if (!schemaResponse.ok) {
-                     console.error(`Failed to fetch schema/${filename}`);
+        const schemaPromises = schemaGroups.flatMap(group => 
+            (group.schemas || []).map(async (filename) => {
+                try {
+                    const schemaResponse = await fetch(`./schema/${filename}`);
+                    if (!schemaResponse.ok) {
+                         console.error(`Failed to fetch schema/${filename}`);
+                        return null;
+                    }
+                    const schemaContent = await schemaResponse.json();
+                    const schemaKey = filename.replace('.json', '');
+                    state.defaultSchemaKeys.add(schemaKey);
+                    state.defaultSchemaGroupMap.set(schemaKey, group.group || 'Default');
+                    return { key: schemaKey, content: schemaContent };
+                } catch (e) {
+                    console.error(`Error processing schema file ${filename}:`, e);
                     return null;
                 }
-                const schemaContent = await schemaResponse.json();
-                const schemaKey = filename.replace('.json', '');
-                state.defaultSchemaKeys.add(schemaKey);
-                return { key: schemaKey, content: schemaContent };
-            } catch (e) {
-                console.error(`Error processing schema file ${filename}:`, e);
-                return null;
-            }
-        });
+            })
+        );
 
         const results = await Promise.all(schemaPromises);
         results.forEach(result => {
@@ -1000,7 +1109,7 @@ export async function initializeSchemaValidator() {
         state.schemaData = {}; // Fallback to empty
     }
 
-    populateSchemaSelects();
+    populateCustomDropdowns();
 }
 
 export function handleVisualBuilderClicks(e) {

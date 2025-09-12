@@ -1,6 +1,21 @@
-
 [
-  "appdata.json",
-  "rgula.json",
-  "papa.json"
+  {
+    "group": "Cyber",
+    "schemas": [
+      "appdata.json",
+      "stam.json"
+    ]
+  },
+  {
+    "group": "Bank Schemas",
+    "schemas": [
+      "rgula.json"
+    ]
+  },
+  {
+    "group": "User Data",
+    "schemas": [
+      "papa.json"
+    ]
+  }
 ]

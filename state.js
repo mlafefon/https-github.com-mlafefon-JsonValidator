@@ -13,4 +13,5 @@ export const state = {
     currentParentForNewField: null,
     pathToLineMap: null,
     defaultSchemaKeys: new Set(),
+    defaultSchemaGroupMap: new Map(),
 };

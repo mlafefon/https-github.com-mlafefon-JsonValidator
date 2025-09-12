@@ -1,6 +1,3 @@
-
-
-
 import * as dom from './dom.js';
 import { state } from './state.js';
 import * as constants from './constants.js';
@@ -542,10 +539,9 @@ function parseMultiJson(text) {
 }
 
 
-export function validateAndParseJson(options = {}) {
-    const { expansionState } = options;
-    const text = dom.jsonInput.value;
-    
+// --- Validation Main Logic ---
+
+function _resetValidationState() {
     dom.errorDisplay.hidden = true;
     dom.errorDisplay.classList.remove('clickable');
     state.currentErrorLineNumber = null;
@@ -558,129 +554,147 @@ export function validateAndParseJson(options = {}) {
     if (previousErrorLine) {
         previousErrorLine.classList.remove('line-number-error');
     }
+}
+
+function _handleEmptyInput() {
+    updateStatusBar(constants.ValidationStatus.IDLE, 'הדבק את ה-JSON שלך ובדוק את תקינותו, או נסה פורמט JSON Lines.');
+    buildTreeView(undefined);
+    dom.beautifyBtn.disabled = true;
+    dom.minifyBtn.disabled = true;
+}
+
+function _runSchemaValidation(parsedData) {
+    const selectedSchemaKey = dom.schemaValidatorSelectBtn.dataset.value;
+    if (!selectedSchemaKey || !state.schemaData) {
+        displaySchemaValidationResults(null);
+        return;
+    }
+    const schema = state.schemaData[selectedSchemaKey];
+    if (!schema) return;
+
+    const checkAdditional = dom.additionalPropsToggle.checked;
+    const dataToValidate = Array.isArray(parsedData) ? parsedData : [parsedData];
+    let allErrors = [];
+    
+    for (let i = 0; i < dataToValidate.length; i++) {
+        const item = dataToValidate[i];
+        const errors = validateJsonAgainstSchema(item, schema, checkAdditional);
+        if (errors.length > 0) {
+            if (dataToValidate.length > 1) {
+                allErrors.push(...errors.map(e => ({...e, message: `[אובייקט ${i + 1}] ${e.message}`})));
+            } else {
+                allErrors.push(...errors);
+            }
+        }
+    }
+    displaySchemaValidationResults(allErrors, dataToValidate.length);
+}
+
+function _reportSyntaxError(e, text) {
+    updateStatusBar(constants.ValidationStatus.ERROR, 'JSON לא תקין. תקן את השגיאה שמוצגת למעלה.');
+    
+    let detailedMessage = e.message;
+    const positionMatch = e.message.match(/at position (\d+)/);
+    if (positionMatch) {
+        const position = parseInt(positionMatch[1], 10);
+        const { line, column } = getLineAndColumnFromPosition(text, position);
+        
+        let errorLineToHighlight = line;
+        let finalMessage = e.message.replace(`at position ${position}`, `(line ${line}, column ${column})`);
+        const isLikelyMissingCommaError = /Unexpected string|Unexpected number|Unexpected token ["tfn{\[]|Expected ','/i.test(e.message);
+
+        if (isLikelyMissingCommaError && line > 1) {
+            const lines = text.split('\n');
+            let previousLineIndex = -1;
+            for (let i = line - 2; i >= 0; i--) {
+                if (lines[i].trim() !== '') {
+                    previousLineIndex = i;
+                    break;
+                }
+            }
+
+            if (previousLineIndex !== -1) {
+                const prevLineTrimmed = lines[previousLineIndex].trim();
+                const lastChar = prevLineTrimmed.slice(-1);
+                if (!['{', '[', ','].includes(lastChar)) {
+                    const correctedLineNumber = previousLineIndex + 1;
+                    const correctedOriginalMessage = finalMessage.replace(`(line ${line},`, `(line ${correctedLineNumber},`);
+                    errorLineToHighlight = correctedLineNumber;
+                    finalMessage = `ייתכן שחסר פסיק בשורה ${errorLineToHighlight}.\n${correctedOriginalMessage}`;
+                }
+            }
+        }
+
+        state.currentErrorLineNumber = errorLineToHighlight;
+        dom.errorDisplay.classList.add('clickable');
+        detailedMessage = finalMessage;
+
+        const errorLineDiv = dom.lineNumbers.querySelector(`div:nth-child(${errorLineToHighlight})`);
+        if (errorLineDiv) {
+            errorLineDiv.classList.add('line-number-error');
+        }
+        highlightErrorLine(errorLineToHighlight);
+
+    } else {
+         state.currentErrorLineNumber = null;
+         dom.errorDisplay.classList.remove('clickable');
+    }
+    
+    dom.errorIconEl.innerHTML = constants.ICONS.ERROR;
+    dom.errorMessageEl.textContent = detailedMessage;
+    dom.errorDisplay.hidden = false;
+}
+
+export function validateAndParseJson(options = {}) {
+    const { expansionState } = options;
+    const text = dom.jsonInput.value;
+    
+    _resetValidationState();
 
     if (!text.trim()) {
-        updateStatusBar(constants.ValidationStatus.IDLE, 'הדבק את ה-JSON שלך ובדוק את תקינותו, או נסה פורמט JSON Lines.');
-        buildTreeView(undefined);
-        dom.beautifyBtn.disabled = true;
-        dom.minifyBtn.disabled = true;
+        _handleEmptyInput();
         return;
     }
 
     dom.beautifyBtn.disabled = false;
     dom.minifyBtn.disabled = false;
     
-    const selectedSchemaKey = dom.schemaValidatorSelect.value;
-    const runValidation = (parsedData) => {
-        if (!selectedSchemaKey || !state.schemaData) {
-            displaySchemaValidationResults(null);
-            return;
-        }
-        const schema = state.schemaData[selectedSchemaKey];
-        if (!schema) return;
-
-        const checkAdditional = dom.additionalPropsToggle.checked;
-        const dataToValidate = Array.isArray(parsedData) ? parsedData : [parsedData];
-        let allErrors = [];
-        
-        for (let i = 0; i < dataToValidate.length; i++) {
-            const item = dataToValidate[i];
-            const errors = validateJsonAgainstSchema(item, schema, checkAdditional);
-            if (errors.length > 0) {
-                if (dataToValidate.length > 1) {
-                    allErrors.push(...errors.map(e => ({...e, message: `[אובייקט ${i + 1}] ${e.message}`})));
-                } else {
-                    allErrors.push(...errors);
-                }
-            }
-        }
-        displaySchemaValidationResults(allErrors, dataToValidate.length);
-    };
-
+    // Attempt to parse as a single, valid JSON object
     try {
         const { parsed, locationsMap } = locationParser.parse(text);
-        state.pathToLineMap = buildPathToLineMap(parsed, locationsMap);
-        const plainParsed = JSON.parse(text);
-
+        
         const multiJsonCheck = parseMultiJson(text);
         if (multiJsonCheck.success && multiJsonCheck.data.length > 1) {
-             // It's technically valid single JSON (e.g. `[1][2]`), but it's really multi-json.
-             // Prioritize multi-json handling.
              throw new Error("Ambiguous single/multi JSON, treating as multi-JSON.");
         }
 
+        state.pathToLineMap = buildPathToLineMap(parsed, locationsMap);
+        const plainParsed = JSON.parse(text);
+
         updateStatusBar(constants.ValidationStatus.SUCCESS, 'JSON תקין!');
         buildTreeView(parsed, { locationsMap, expansionState });
-        runValidation(plainParsed);
+        _runSchemaValidation(plainParsed);
         return;
     } catch (e) {
-        // Not a valid single JSON, try multi-JSON/JSON lines
+        // Fallthrough to try multi-JSON or report syntax error
     }
 
+    // Attempt to parse as JSON Lines / multi-JSON
     const multiJsonResult = parseMultiJson(text);
     if (multiJsonResult.success) {
         state.pathToLineMap = new Map();
         updateStatusBar(constants.ValidationStatus.SUCCESS, 'זוהה פורמט JSON Lines / Multi-JSON. כל האובייקטים תקינים!');
         buildTreeView(multiJsonResult.data, { lineMap: multiJsonResult.lineMap, expansionState });
-        runValidation(multiJsonResult.data);
+        _runSchemaValidation(multiJsonResult.data);
         return;
     }
 
+    // If both fail, it's a syntax error
     try {
       JSON.parse(text);
     } catch(e) {
-        updateStatusBar(constants.ValidationStatus.ERROR, 'JSON לא תקין. תקן את השגיאה שמוצגת למעלה.');
-        
-        let detailedMessage = e.message;
-        const positionMatch = e.message.match(/at position (\d+)/);
-        if (positionMatch) {
-            const position = parseInt(positionMatch[1], 10);
-            const { line, column } = getLineAndColumnFromPosition(text, position);
-            
-            let errorLineToHighlight = line;
-            let finalMessage = e.message.replace(`at position ${position}`, `(line ${line}, column ${column})`);
-            const isLikelyMissingCommaError = /Unexpected string|Unexpected number|Unexpected token ["tfn{\[]|Expected ','/i.test(e.message);
-
-            if (isLikelyMissingCommaError && line > 1) {
-                const lines = text.split('\n');
-                let previousLineIndex = -1;
-                for (let i = line - 2; i >= 0; i--) {
-                    if (lines[i].trim() !== '') {
-                        previousLineIndex = i;
-                        break;
-                    }
-                }
-
-                if (previousLineIndex !== -1) {
-                    const prevLineTrimmed = lines[previousLineIndex].trim();
-                    const lastChar = prevLineTrimmed.slice(-1);
-                    if (!['{', '[', ','].includes(lastChar)) {
-                        const correctedLineNumber = previousLineIndex + 1;
-                        const correctedOriginalMessage = finalMessage.replace(`(line ${line},`, `(line ${correctedLineNumber},`);
-                        errorLineToHighlight = correctedLineNumber;
-                        finalMessage = `ייתכן שחסר פסיק בשורה ${errorLineToHighlight}.\n${correctedOriginalMessage}`;
-                    }
-                }
-            }
-
-            state.currentErrorLineNumber = errorLineToHighlight;
-            dom.errorDisplay.classList.add('clickable');
-            detailedMessage = finalMessage;
-
-            const errorLineDiv = dom.lineNumbers.querySelector(`div:nth-child(${errorLineToHighlight})`);
-            if (errorLineDiv) {
-                errorLineDiv.classList.add('line-number-error');
-            }
-            highlightErrorLine(errorLineToHighlight);
-
-        } else {
-             state.currentErrorLineNumber = null;
-             dom.errorDisplay.classList.remove('clickable');
-        }
-        
-        dom.errorIconEl.innerHTML = constants.ICONS.ERROR;
-        dom.errorMessageEl.textContent = detailedMessage;
-        dom.errorDisplay.hidden = false;
+        _reportSyntaxError(e, text);
     }
+
     buildTreeView(null);
 }

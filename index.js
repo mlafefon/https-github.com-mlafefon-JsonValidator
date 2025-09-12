@@ -1,6 +1,3 @@
-
-
-
 import * as dom from './dom.js';
 import { state } from './state.js';
 import * as editor from './editor.js';
@@ -30,11 +27,7 @@ dom.jsonInput.addEventListener('paste', () => {
 dom.jsonInput.addEventListener('scroll', editor.handleScroll);
 dom.beautifyBtn.addEventListener('click', editor.beautifyJson);
 dom.minifyBtn.addEventListener('click', editor.minifyJson);
-dom.schemaValidatorSelect.addEventListener('change', () => {
-    editor.validateAndParseJson();
-    schemaEditor.updateSelectColor(dom.schemaValidatorSelect);
-});
-dom.additionalPropsToggle.addEventListener('change', editor.validateAndParseJson);
+dom.additionalPropsToggle.addEventListener('change', () => editor.validateAndParseJson());
 
 // File Loading
 dom.loadFileBtn.addEventListener('click', () => dom.fileInput.click());
@@ -108,41 +101,45 @@ dom.copySchemaErrorsBtn.addEventListener('click', () => {
     });
 });
 
-// Tree View Listeners
+// --- Tree View Listeners ---
+
+function _handleTreeNodeHighlight(targetElement) {
+    if (!targetElement) return;
+    const currentlyHighlighted = dom.treeView.querySelector('.tree-node-highlighted');
+    if (currentlyHighlighted) {
+        currentlyHighlighted.classList.remove('tree-node-highlighted');
+    }
+    targetElement.classList.add('tree-node-highlighted');
+}
+
+function _handleTreePathDisplay(targetElement) {
+    if (targetElement && targetElement.dataset.jsonPath) {
+        dom.treePathDisplay.textContent = targetElement.dataset.jsonPath;
+        dom.treePathDisplay.hidden = false;
+    }
+}
+
+function _handleTreeEditorSync(targetElement) {
+    if (targetElement) {
+        const lineNumber = parseInt(targetElement.dataset.line, 10);
+        editor.highlightLine(lineNumber);
+    }
+}
+
 dom.treeView.addEventListener('click', (e) => {
-    // 1. Prevent summary from toggling unless the icon is clicked
     const summaryTarget = e.target.closest('summary');
     if (summaryTarget && !e.target.classList.contains('tree-toggle-icon')) {
         e.preventDefault();
     }
 
-    // 2. Handle background highlighting
-    const currentlyHighlighted = dom.treeView.querySelector('.tree-node-highlighted');
-    if (currentlyHighlighted) {
-        currentlyHighlighted.classList.remove('tree-node-highlighted');
-    }
+    const targetToHighlight = summaryTarget || e.target.closest('.tree-leaf');
+    _handleTreeNodeHighlight(targetToHighlight);
+    _handleTreePathDisplay(targetToHighlight);
 
-    const leafTarget = e.target.closest('.tree-leaf');
-    const targetToHighlight = summaryTarget || leafTarget;
-
-    if (targetToHighlight) {
-        // Add highlight to the current target
-        targetToHighlight.classList.add('tree-node-highlighted');
-        
-        // Display JSON Path
-        if (targetToHighlight.dataset.jsonPath) {
-            dom.treePathDisplay.textContent = targetToHighlight.dataset.jsonPath;
-            dom.treePathDisplay.hidden = false;
-        }
-    }
-
-    // 3. Handle editor line highlighting (existing functionality)
     const lineTarget = e.target.closest('[data-line]');
-    if (lineTarget) {
-        const lineNumber = parseInt(lineTarget.dataset.line, 10);
-        editor.highlightLine(lineNumber);
-    }
+    _handleTreeEditorSync(lineTarget);
 });
+
 if (dom.toggleTreeBtn) {
     dom.toggleTreeBtn.addEventListener('click', treeView.toggleAllTreeNodes);
 }
@@ -180,10 +177,6 @@ dom.schemaEditorModal.addEventListener('click', (e) => { if (e.target === dom.sc
 dom.uploadSchemaBtn.addEventListener('click', () => dom.schemaFileInput.click());
 dom.schemaFileInput.addEventListener('change', schemaEditor.handleSchemaFileUpload);
 dom.createNewSchemaBtn.addEventListener('click', schemaEditor.handleCreateNewSchema);
-dom.schemaEditSelect.addEventListener('change', () => {
-    schemaEditor.loadSchemaForEditing();
-    schemaEditor.updateSelectColor(dom.schemaEditSelect);
-});
 dom.saveSchemaBtn.addEventListener('click', schemaEditor.saveSchema);
 dom.downloadSchemaBtn.addEventListener('click', schemaEditor.downloadSchemaFile);
 dom.addSchemaFieldBtn.addEventListener('click', () => schemaEditor.openAddFieldModal(dom.fieldsContainer));
@@ -328,6 +321,8 @@ editor.updateLineNumbers();
 editor.validateAndParseJson();
 schemaEditor.initializeSchemaValidator();
 schemaEditor.initializeSchemaEditorEventListeners();
+schemaEditor.initializeCustomDropdowns();
+
 const resizeObserver = new ResizeObserver(() => {
     const scrollbarHeight = dom.jsonInput.offsetHeight - dom.jsonInput.clientHeight;
     dom.lineNumbers.style.paddingBottom = `calc(1rem + ${scrollbarHeight}px)`;
