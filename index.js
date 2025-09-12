@@ -197,6 +197,7 @@ dom.schemaFieldSearchInput.addEventListener('input', () => {
         schemaEditor.clearFieldSearchHighlights();
     }
 });
+dom.deleteSchemaBtn.addEventListener('click', schemaEditor.openDeleteConfirmationModal);
 
 // --- ADD FIELD MODAL LISTENERS ---
 dom.addFieldForm.addEventListener('submit', schemaEditor.handleAddFieldFromModal);
@@ -218,6 +219,14 @@ dom.confirmSaveCloseBtn.addEventListener('click', () => {
         dom.confirmCloseModal.hidden = true;
         schemaEditor.closeSchemaEditor();
     }
+});
+
+// --- CONFIRM DELETE SCHEMA MODAL LISTENERS ---
+dom.confirmDeleteSchemaCancelBtn.addEventListener('click', () => {
+    dom.confirmDeleteSchemaModal.hidden = true;
+});
+dom.confirmDeleteSchemaConfirmBtn.addEventListener('click', () => {
+    schemaEditor.deleteCurrentSchema();
 });
 
 

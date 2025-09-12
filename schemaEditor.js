@@ -74,7 +74,7 @@ function updateDropdownButtonState(button, selectedKey, placeholder) {
 
 function populateCustomDropdowns() {
     const dropdowns = [
-        { options: dom.schemaValidatorOptions, button: dom.schemaValidatorSelectBtn, placeholder: 'בחר סוג' },
+        { options: dom.schemaValidatorOptions, button: dom.schemaValidatorSelectBtn, placeholder: 'בחר סכמה' },
         { options: dom.schemaEditOptions, button: dom.schemaEditSelectBtn, placeholder: 'בחר סכמה לעריכה...' }
     ];
     
@@ -197,7 +197,7 @@ export function initializeCustomDropdowns() {
         dom.schemaValidatorSelectBtn,
         dom.schemaValidatorOptions,
         (value) => {
-            updateDropdownButtonState(dom.schemaValidatorSelectBtn, value, 'בחר סוג');
+            updateDropdownButtonState(dom.schemaValidatorSelectBtn, value, 'בחר סכמה');
             validateAndParseJson();
         }
     );
@@ -725,6 +725,7 @@ function clearSchemaEditorForm() {
     dom.schemaComplexityWarning.hidden = true;
     dom.fieldsContainer.innerHTML = '';
     dom.schemaFieldSearchInput.value = '';
+    dom.deleteSchemaBtn.disabled = true;
     clearFieldSearchHighlights();
 }
 
@@ -740,6 +741,7 @@ export function loadSchemaForEditing(key) {
         clearSchemaEditorForm();
         dom.schemaEditorFormContainer.hidden = true;
         dom.schemaEditorFooter.hidden = true;
+        dom.deleteSchemaBtn.disabled = true;
         return;
     }
 
@@ -753,6 +755,7 @@ export function loadSchemaForEditing(key) {
         dom.schemaContentTextarea.value = schemaString;
         state.initialSchemaStateOnLoad = schemaString;
         updateVisualBuilderFromRaw();
+        dom.deleteSchemaBtn.disabled = state.defaultSchemaKeys.has(key);
     }
 }
 
@@ -815,13 +818,14 @@ export function saveSchema() {
         populateCustomDropdowns();
         
         updateDropdownButtonState(dom.schemaEditSelectBtn, newKey, 'בחר סכמה לעריכה...');
+        dom.deleteSchemaBtn.disabled = state.defaultSchemaKeys.has(newKey);
         
         const validatorButton = dom.schemaValidatorSelectBtn;
         const isNewSchema = oldKey === null;
         const isRenamedAndSelected = !isNewSchema && oldKey !== newKey && validatorButton.dataset.value === oldKey;
 
         if (isNewSchema || isRenamedAndSelected) {
-            updateDropdownButtonState(validatorButton, newKey, 'בחר סוג');
+            updateDropdownButtonState(validatorButton, newKey, 'בחר סכמה');
         }
 
         displaySchemaEditorFeedback('success', 'הסכמה נשמרה בהצלחה!');
@@ -1050,6 +1054,7 @@ export function handleCreateNewSchema() {
     dom.schemaFieldSearchInput.value = '';
     clearFieldSearchHighlights();
     updateVisualBuilderFromRaw();
+    dom.deleteSchemaBtn.disabled = true;
     dom.schemaTitleInput.focus();
 }
 
@@ -1370,6 +1375,47 @@ function handleGenerateExampleJson() {
     validateExampleJson();
     dom.exampleJsonTextarea.focus();
     dom.exampleJsonTextarea.scrollTop = 0;
+}
+
+export function openDeleteConfirmationModal() {
+    const keyToDelete = state.currentEditingSchemaKey;
+    if (!keyToDelete || state.defaultSchemaKeys.has(keyToDelete)) {
+        displaySchemaEditorFeedback('error', 'לא ניתן למחוק סכמת ברירת מחדל.');
+        return;
+    }
+    const schemaName = state.schemaData[keyToDelete]?.title || keyToDelete;
+    dom.schemaToDeleteName.textContent = schemaName;
+    dom.confirmDeleteSchemaModal.hidden = false;
+}
+
+export function deleteCurrentSchema() {
+    const keyToDelete = state.currentEditingSchemaKey;
+    if (!keyToDelete || state.defaultSchemaKeys.has(keyToDelete)) {
+        dom.confirmDeleteSchemaModal.hidden = true;
+        displaySchemaEditorFeedback('error', 'לא ניתן למחוק סכמת ברירת מחדל.');
+        return;
+    }
+    try {
+        delete state.schemaData[keyToDelete];
+        localStorage.setItem(constants.LS_SCHEMA_KEY, JSON.stringify(state.schemaData));
+
+        dom.confirmDeleteSchemaModal.hidden = true;
+        clearSchemaEditorForm();
+        dom.schemaEditorFormContainer.hidden = true;
+        dom.schemaEditorFooter.hidden = true;
+
+        populateCustomDropdowns();
+
+        if (dom.schemaValidatorSelectBtn.dataset.value === keyToDelete) {
+            updateDropdownButtonState(dom.schemaValidatorSelectBtn, '', 'בחר סכמה');
+            validateAndParseJson();
+        }
+        displaySchemaEditorFeedback('success', `הסכמה '${keyToDelete}' נמחקה בהצלחה.`);
+    } catch (e) {
+        console.error('Failed to delete user schema:', e);
+        dom.confirmDeleteSchemaModal.hidden = true;
+        displaySchemaEditorFeedback('error', 'אירעה שגיאה במחיקת הסכמה.');
+    }
 }
 
 

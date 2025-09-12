@@ -49,6 +49,7 @@ export const schemaEditorFooter = document.getElementById('schema-editor-footer'
 export const schemaFieldSearchInput = document.getElementById('schema-field-search-input');
 export const schemaFieldSearchBtn = document.getElementById('schema-field-search-btn');
 export const additionalPropsToggle = document.getElementById('additional-props-toggle');
+export const deleteSchemaBtn = document.getElementById('delete-schema-btn');
 
 // --- CUSTOM SCHEMA DROPDOWNS ---
 export const schemaValidatorDropdown = document.getElementById('schema-validator-dropdown');
@@ -96,3 +97,9 @@ export const confirmCloseModal = document.getElementById('confirm-close-modal');
 export const confirmSaveCloseBtn = document.getElementById('confirm-save-close-btn');
 export const confirmDiscardBtn = document.getElementById('confirm-discard-btn');
 export const confirmCloseXBtn = document.getElementById('confirm-close-x-btn');
+
+// --- CONFIRM DELETE SCHEMA MODAL ---
+export const confirmDeleteSchemaModal = document.getElementById('confirm-delete-schema-modal');
+export const confirmDeleteSchemaCancelBtn = document.getElementById('confirm-delete-schema-cancel-btn');
+export const confirmDeleteSchemaConfirmBtn = document.getElementById('confirm-delete-schema-confirm-btn');
+export const schemaToDeleteName = document.getElementById('schema-to-delete-name');
