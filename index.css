@@ -72,6 +72,7 @@ body {
     color: var(--text-color-light);
     height: 100vh;
     overflow: hidden;
+    overscroll-behavior-y: contain; /* Prevents pull-to-refresh on mobile */
 }
 
 /* Custom Scrollbar */
@@ -621,9 +622,21 @@ body {
 .tree-children { padding-left: 1.25rem; position: relative; }
 .tree-children::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0.5rem; border-left: 1px solid var(--border-color); }
 .tree-node { position: relative; }
-.tree-node > details > summary::before, .tree-leaf::before { content: ''; position: absolute; top: 0.9em; left: -0.75rem; width: 0.75rem; border-bottom: 1px solid var(--border-color); }
-.tree-node.is-last::after { content: ''; position: absolute; top: 0.9em; bottom: 0; left: -0.75rem; width: 1px; background-color: var(--bg-color-pane); }
-.tree-node > details > summary, .tree-leaf { position: relative; display: flex; align-items: center; border-radius: var(--border-radius-sm); transition: background-color var(--transition-fast); padding: var(--space-xs) var(--space-sm); margin-right: calc(-1 * var(--space-sm)); margin-left: calc(-1 * var(--space-sm));}
+.tree-node > details > summary::before, .tree-leaf::before { content: ''; position: absolute; top: 50%; left: -0.25rem; width: 0.75rem; border-bottom: 1px solid var(--border-color); }
+
+/* Fix for root-level guide lines which have a different padding */
+.tree-node[data-is-root-node="true"] > details > .tree-children > .tree-node > details > summary::before,
+.tree-node[data-is-root-node="true"] > details > .tree-children > .tree-node > .tree-leaf::before {
+    left: 0;
+    width: 0.5rem;
+}
+
+.tree-node[data-is-root-node="true"] > details > .tree-children > .tree-node.is-last::after {
+    left: -0.5rem;
+}
+
+.tree-node.is-last::after { content: ''; position: absolute; top: 0.9rem; bottom: 0; left: -0.75rem; width: 1px; background-color: var(--bg-color-pane); }
+.tree-node > details > summary, .tree-leaf { position: relative; display: flex; align-items: center; border-radius: var(--border-radius-sm); transition: background-color var(--transition-fast); padding: var(--space-xs) var(--space-sm); margin-right: calc(-1 * var(--space-sm)); margin-left: calc(-1 * var(--space-sm)); min-height: 1.8rem;}
 .tree-leaf, .tree-node > details > summary { cursor: pointer; }
 .tree-node > details > summary { list-style: none; }
 .tree-node > details > summary::-webkit-details-marker { display: none; }
@@ -931,7 +944,7 @@ body {
 .field-controls { display: flex; align-items: center; gap: var(--space-sm); margin-left: auto; }
 .field-type-select, .array-item-type-select {
     -webkit-appearance: none; -moz-appearance: none; appearance: none;
-    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%2394a3b8%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%20clip-rule%3D%22evenodd%22%20%2F%3E%3C%2Fsvg%3E');
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%2394a3b8%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%20clip-rule%3D%22evenodd%22%20%2F%3E%3C%2Fsvg%3E');
     background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1.25em 1.25em;
     background-color: var(--bg-color-subtle); border: 1px solid var(--border-color); color: var(--text-color-light);
     font-size: 0.875rem; font-weight: 500; padding: 0.375rem 2.25rem 0.375rem 0.75rem; cursor: pointer;
@@ -978,11 +991,71 @@ body {
 
 /* --- Responsive & Misc --- */
 @media (max-width: 768px) {
-    .main-content { grid-template-columns: 1fr; grid-template-rows: 1fr auto; gap: var(--space-md); }
-    .resizer { display: none; }
-    .tree-pane { height: 16rem; }
-    .schema-form-grid, .schema-editor-main-area { grid-template-columns: 1fr; }
-     .schema-editor-main-area { grid-template-rows: minmax(200px, 1fr) minmax(200px, 1fr); }
+    html {
+        font-size: 16px;
+    }
+
+    .app-header {
+        padding: var(--space-sm) var(--space-md);
+    }
+
+    .title {
+        font-size: 1.25rem;
+    }
+
+    .main-content {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 2fr) auto; /* Give more space to editor */
+        gap: var(--space-sm);
+        padding: var(--space-sm);
+    }
+
+    .resizer, #schema-editor-resizer {
+        display: none;
+    }
+
+    .tree-pane {
+        min-height: 16rem;
+        max-height: 40vh; /* Prevent tree from taking too much vertical space */
+        height: auto; /* Override fixed height */
+    }
+
+    .editor-toolbar {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: var(--space-sm);
+    }
+    
+    .toolbar-main-actions {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .modal-body {
+        padding: var(--space-md);
+        overflow-y: auto;
+    }
+    
+    .schema-editor-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+     .schema-editor-controls > .action-button,
+     .schema-editor-controls > .custom-dropdown {
+        width: 100%;
+    }
+    
+    .schema-form-grid, .schema-editor-main-area {
+        grid-template-columns: 1fr;
+    }
+    
+    .schema-form-grid > .form-group:last-child {
+        grid-column: 1;
+    }
+
+    .schema-editor-main-area {
+        grid-template-rows: minmax(250px, 1fr) minmax(250px, 1.5fr); /* raw editor, then visual builder */
+    }
 }
 
 .easter-egg-overlay {

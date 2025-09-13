@@ -73,6 +73,7 @@ export const exampleJsonFeedbackIcon = document.getElementById('example-json-fee
 export const exampleJsonFeedbackMessage = document.getElementById('example-json-feedback-message');
 export const uploadExampleJsonBtn = document.getElementById('upload-example-json-btn');
 export const generateExampleJsonBtn = document.getElementById('generate-example-json-btn');
+export const beautifySchemaBtn = document.getElementById('beautify-schema-btn');
 export const exampleJsonFileInput = document.getElementById('example-json-file-input');
 
 // --- SCHEMA BUILDER UI ELEMENTS ---

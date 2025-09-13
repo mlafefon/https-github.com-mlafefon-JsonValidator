@@ -4,6 +4,103 @@ import * as constants from './constants.js';
 import { sanitizeInput } from './utils.js';
 import { validateAndParseJson, validateJsonAgainstSchema } from './editor.js';
 
+let currentExampleHighlight = { gutter: null, background: null, line: null };
+
+function beautifyActiveTextarea() {
+    const isSchemaTabActive = dom.schemaContentPane.classList.contains('active');
+    const activeTextarea = isSchemaTabActive ? dom.schemaContentTextarea : dom.exampleJsonTextarea;
+    
+    const text = activeTextarea.value;
+    if (!text.trim()) return;
+
+    try {
+        const parsed = JSON.parse(text);
+        activeTextarea.value = JSON.stringify(parsed, null, 2);
+        
+        if (isSchemaTabActive) {
+            updateLineNumbersForTextarea(dom.schemaContentTextarea, dom.schemaContentLineNumbers);
+            updateVisualBuilderFromRaw();
+            clearTimeout(state.exampleJsonValidationTimeout);
+            state.exampleJsonValidationTimeout = setTimeout(validateExampleJson, 500);
+        } else {
+            updateLineNumbersForTextarea(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);
+            validateExampleJson();
+        }
+    } catch (e) {
+        // Silently fail if JSON is invalid. The validators will show an error anyway.
+        console.warn("Beautify failed: invalid JSON.", e.message);
+    }
+}
+
+// --- PARSER LOGIC FOR EXAMPLE JSON ---
+function createLocationAwareParser() {
+    const locationsMap = new Map();
+    let uidCounter = 0;
+
+    const getLineNumber = (text, index) => {
+        return text.substring(0, index).split('\n').length;
+    };
+
+    const parse = (jsonString) => {
+        locationsMap.clear();
+        uidCounter = 0;
+
+        if (!jsonString.trim()) {
+            return { parsed: undefined, locationsMap };
+        }
+        
+        const modifiedJsonString = jsonString.replace(/"((?:[^"\\]|\\.)*)"(\s*:)/g, (match, key, colonAndSpace, offset) => {
+            const uid = ++uidCounter;
+            const uniqueKey = `${key}${constants.UID_SEPARATOR}${uid}`;
+            locationsMap.set(uniqueKey, { originalKey: key, line: getLineNumber(jsonString, offset) });
+            return `"${uniqueKey}"${colonAndSpace}`;
+        });
+
+        const parsed = JSON.parse(modifiedJsonString);
+        return { parsed, locationsMap };
+    };
+    
+    return { parse };
+}
+
+const exampleLocationParser = createLocationAwareParser();
+
+function buildPathToLineMap(parsedObjectWithUids, locationsMap) {
+    const pathToLineMap = new Map();
+    pathToLineMap.set('root', 1);
+
+    function traverse(obj, currentPath) {
+        if (Array.isArray(obj)) {
+            obj.forEach((item, index) => {
+                const itemPath = `${currentPath}/${index}`;
+                const parentLine = pathToLineMap.get(currentPath);
+                if (parentLine) {
+                    pathToLineMap.set(itemPath, parentLine);
+                }
+                 if (typeof item === 'object' && item !== null) {
+                    traverse(item, itemPath);
+                }
+            });
+        } else if (typeof obj === 'object' && obj !== null) {
+            for (const keyWithUid in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, keyWithUid)) {
+                    const locationInfo = locationsMap.get(keyWithUid);
+                    if (locationInfo) {
+                        const itemPath = `${currentPath}/${locationInfo.originalKey}`;
+                        pathToLineMap.set(itemPath, locationInfo.line);
+
+                        if (typeof obj[keyWithUid] === 'object' && obj[keyWithUid] !== null) {
+                            traverse(obj[keyWithUid], itemPath);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    traverse(parsedObjectWithUids, 'root');
+    return pathToLineMap;
+}
 
 function updateLineNumbersForTextarea(textarea, lineNumbersContainer) {
     if (!textarea || !lineNumbersContainer) return;
@@ -20,6 +117,55 @@ function handleTextareaScroll(textarea, lineNumbersContainer) {
     lineNumbersContainer.scrollTop = textarea.scrollTop;
 }
 
+function highlightExampleJsonLine(lineNumber) {
+    if (currentExampleHighlight.gutter) currentExampleHighlight.gutter.classList.remove('line-number-highlight');
+    if (currentExampleHighlight.background) currentExampleHighlight.background.remove();
+
+    if (lineNumber === null || lineNumber === undefined) {
+        currentExampleHighlight = { gutter: null, background: null, line: null };
+        return;
+    }
+
+    const editorContainer = dom.exampleJsonPane.querySelector('.schema-editor-textarea-container');
+    if (!editorContainer) return;
+    
+    const gutterLine = dom.exampleJsonLineNumbers.querySelector(`div:nth-child(${lineNumber})`);
+    if (gutterLine) {
+        gutterLine.classList.add('line-number-highlight');
+        currentExampleHighlight.gutter = gutterLine;
+    }
+
+    const textarea = dom.exampleJsonTextarea;
+    const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight);
+    const paddingTop = parseFloat(getComputedStyle(textarea).paddingTop);
+    
+    const highlightBg = document.createElement('div');
+    highlightBg.className = 'line-highlight';
+    highlightBg.style.height = `${lineHeight}px`;
+    highlightBg.style.top = `${paddingTop + (lineNumber - 1) * lineHeight - textarea.scrollTop}px`;
+    
+    editorContainer.insertBefore(highlightBg, textarea);
+    currentExampleHighlight.background = highlightBg;
+    currentExampleHighlight.line = lineNumber;
+
+    const targetScroll = (lineNumber - 1) * lineHeight;
+    const viewTop = textarea.scrollTop;
+    const viewBottom = viewTop + textarea.clientHeight - lineHeight;
+    if (targetScroll < viewTop || targetScroll > viewBottom) {
+        textarea.scrollTo({ top: targetScroll - (textarea.clientHeight / 3), behavior: 'smooth' });
+    }
+}
+
+function handleExampleJsonScroll() {
+    handleTextareaScroll(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);
+    
+    if (currentExampleHighlight.background && currentExampleHighlight.line !== null) {
+        const textarea = dom.exampleJsonTextarea;
+        const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight);
+        const paddingTop = parseFloat(getComputedStyle(textarea).paddingTop);
+        currentExampleHighlight.background.style.top = `${paddingTop + (currentExampleHighlight.line - 1) * lineHeight - textarea.scrollTop}px`;
+    }
+}
 
 function hasUnsavedChanges() {
     if (dom.schemaEditorModal.hidden || dom.schemaEditorFormContainer.hidden) {
@@ -227,10 +373,12 @@ function displaySchemaEditorFeedback(type, message) {
     }, 5000);
 }
 
-function displayExampleJsonFeedback(errors) {
+function displayExampleJsonFeedback(errors, pathToLineMap = null) {
     const feedbackEl = dom.exampleJsonFeedback;
     const iconEl = dom.exampleJsonFeedbackIcon;
     const messageEl = dom.exampleJsonFeedbackMessage;
+
+    highlightExampleJsonLine(null);
 
     if (!errors) {
         feedbackEl.hidden = true;
@@ -238,19 +386,30 @@ function displayExampleJsonFeedback(errors) {
     }
 
     feedbackEl.hidden = false;
-    feedbackEl.className = 'feedback-display'; // Reset
+    feedbackEl.className = 'feedback-display';
 
     if (errors.length === 0) {
         feedbackEl.classList.add('feedback-success');
         iconEl.innerHTML = constants.ICONS.SUCCESS;
-        messageEl.textContent = 'ה-JSON לדוגמה תואם לסכמה הנוכחית!';
+        messageEl.innerHTML = 'ה-JSON לדוגמה תואם לסכמה הנוכחית!';
     } else {
         feedbackEl.classList.add('feedback-error');
         iconEl.innerHTML = constants.ICONS.ERROR;
-        const errorMessages = errors.slice(0, 5).map(e => `- ${e.message}`).join('\n');
-        const moreErrors = errors.length > 5 ? `\n...ועוד ${errors.length - 5} שגיאות.` : '';
-        messageEl.style.whiteSpace = 'pre-wrap'; // To respect newlines
-        messageEl.textContent = `נמצאו ${errors.length} שגיאות:\n${errorMessages}${moreErrors}`;
+
+        const errorItemsHTML = errors.slice(0, 5).map(error => {
+            const line = pathToLineMap ? pathToLineMap.get(error.path) : null;
+            const cssClass = line ? 'schema-error-line clickable' : 'schema-error-line';
+            const typeClass = error.type ? `schema-error-type-${error.type}` : '';
+            const dataAttr = line ? `data-line="${line}"` : '';
+            const sanitizedMessage = error.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            return `<div class="${cssClass} ${typeClass}" ${dataAttr}>- ${sanitizedMessage}</div>`;
+        }).join('');
+        
+        const moreErrors = errors.length > 5 ? `<div class="schema-error-line">...ועוד ${errors.length - 5} שגיאות.</div>` : '';
+        const title = `<strong>נמצאו ${errors.length} שגיאות:</strong>`;
+
+        messageEl.style.whiteSpace = 'normal';
+        messageEl.innerHTML = `${title}${errorItemsHTML}${moreErrors}`;
     }
 }
 
@@ -259,11 +418,11 @@ function validateExampleJson() {
     const exampleText = dom.exampleJsonTextarea.value;
 
     if (!schemaText.trim() || !exampleText.trim()) {
-        displayExampleJsonFeedback(null); // Hide feedback if either is empty
+        displayExampleJsonFeedback(null);
         return;
     }
 
-    let schema, exampleJson;
+    let schema, exampleJson, pathToLineMap;
 
     try {
         schema = JSON.parse(schemaText);
@@ -273,6 +432,8 @@ function validateExampleJson() {
     }
 
     try {
+        const { parsed: parsedWithUids, locationsMap } = exampleLocationParser.parse(exampleText);
+        pathToLineMap = buildPathToLineMap(parsedWithUids, locationsMap);
         exampleJson = JSON.parse(exampleText);
     } catch (e) {
         displayExampleJsonFeedback([{ message: `JSON לדוגמה לא תקין: ${e.message}` }]);
@@ -280,7 +441,7 @@ function validateExampleJson() {
     }
 
     const errors = validateJsonAgainstSchema(exampleJson, schema);
-    displayExampleJsonFeedback(errors);
+    displayExampleJsonFeedback(errors, pathToLineMap);
 }
 
 
@@ -1418,6 +1579,15 @@ export function deleteCurrentSchema() {
     }
 }
 
+function handleExampleFeedbackClick(e) {
+    const target = e.target.closest('[data-line]');
+    if (target) {
+        const lineNumber = parseInt(target.dataset.line, 10);
+        if (!isNaN(lineNumber)) {
+            highlightExampleJsonLine(lineNumber);
+        }
+    }
+}
 
 export function initializeSchemaEditorEventListeners() {
     dom.schemaContentTab.addEventListener('click', () => switchTab('schema'));
@@ -1427,15 +1597,15 @@ export function initializeSchemaEditorEventListeners() {
     dom.exampleJsonFileInput.addEventListener('change', handleExampleJsonUpload);
     
     dom.generateExampleJsonBtn.addEventListener('click', handleGenerateExampleJson);
+    dom.beautifySchemaBtn.addEventListener('click', beautifyActiveTextarea);
+    dom.exampleJsonFeedback.addEventListener('click', handleExampleFeedbackClick);
 
     dom.exampleJsonTextarea.addEventListener('input', () => {
         updateLineNumbersForTextarea(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);
         clearTimeout(state.exampleJsonValidationTimeout);
         state.exampleJsonValidationTimeout = setTimeout(validateExampleJson, 500);
     });
-    dom.exampleJsonTextarea.addEventListener('scroll', () => {
-        handleTextareaScroll(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);
-    });
+    dom.exampleJsonTextarea.addEventListener('scroll', handleExampleJsonScroll);
 
     dom.schemaContentTextarea.addEventListener('input', () => {
         updateLineNumbersForTextarea(dom.schemaContentTextarea, dom.schemaContentLineNumbers);
