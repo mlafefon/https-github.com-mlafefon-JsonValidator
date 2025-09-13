@@ -230,11 +230,19 @@ body {
     vertical-align: middle;
 }
 
-.beautify-button { background-color: var(--accent-blue); }
-.beautify-button:hover { background-color: var(--accent-blue-hover); }
+.beautify-button,
+.minify-button {
+    padding: 0.6rem;
+    background-color: var(--bg-color-subtle);
+    border: 1px solid var(--border-color-strong);
+}
+.beautify-button:hover,
+.minify-button:hover {
+    background-color: var(--border-color-strong);
+    border-color: var(--text-color-dark);
+    filter: none;
+}
 
-.minify-button { background-color: var(--accent-orange); }
-.minify-button:hover { background-color: var(--accent-orange-hover); }
 
 .load-button { background-color: var(--accent-teal); }
 .load-button:hover { background-color: var(--accent-teal-hover); }
@@ -751,7 +759,10 @@ body {
 
 #schema-editor-form-container { display: flex; flex-direction: column; gap: var(--space-md); flex-grow: 1; min-height: 0; }
 #schema-editor-form-container[hidden] { display: none; }
-.schema-form-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: var(--space-md); flex-shrink: 0; }
+.schema-form-grid { display: grid; grid-template-columns: 1fr 5px 1.5fr; gap: var(--space-md); flex-shrink: 0; }
+.schema-form-grid > .form-group:last-child {
+    grid-column: 3;
+}
 .form-group { display: flex; flex-direction: column; gap: var(--space-sm); }
 .form-group label { font-weight: 500; font-size: 0.9rem; color: var(--text-color-medium); }
 .schema-form-input {
@@ -762,8 +773,14 @@ body {
 }
 .schema-form-input:focus { outline: none; border-color: var(--accent-blue); box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.3); }
 
-.schema-editor-main-area { display: grid; grid-template-columns: 1fr 1.5fr; gap: var(--space-md); flex-grow: 1; min-height: 0; }
-#schema-raw-editor-container, .visual-builder-column { display: flex; flex-direction: column; gap: var(--space-sm); min-height: 0; }
+.schema-editor-main-area { display: grid; grid-template-columns: 1fr 5px 1.5fr; gap: var(--space-md); flex-grow: 1; min-height: 0; }
+#schema-raw-editor-container, .visual-builder-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    min-height: 0;
+    min-width: 0;
+}
 .builder-header { display: flex; justify-content: space-between; align-items: center; padding: 0 var(--space-xs); gap: var(--space-sm); }
 .builder-title { font-weight: 500; font-size: 0.9rem; color: var(--text-color-medium); flex-shrink: 0; }
 

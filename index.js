@@ -266,6 +266,78 @@ function initFeedbackResize(e) {
     document.body.style.userSelect = 'none';
 }
 
+function initSchemaEditorResize(e) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    
+    const mainArea = dom.schemaEditorModal.querySelector('.schema-editor-main-area');
+    const leftPane = mainArea.querySelector('#schema-raw-editor-container'); // This is the right-side pane in RTL
+    const rightPane = mainArea.querySelector('.visual-builder-column:last-child'); // This is the left-side pane in RTL
+
+    // --- Dynamic Minimum Width Calculation ---
+    const getChildrensTotalWidth = (element) => {
+        if (!element) return 300; // Fallback
+        const style = window.getComputedStyle(element);
+        const gap = parseFloat(style.gap) || 0;
+        let totalWidth = 0;
+        Array.from(element.children).forEach((child, index) => {
+            const childStyle = window.getComputedStyle(child);
+            // Use scrollWidth for elements that might have internal content larger than their offsetWidth
+            const childWidth = Math.max(child.offsetWidth, child.scrollWidth);
+            totalWidth += childWidth + parseFloat(childStyle.marginLeft) + parseFloat(childStyle.marginRight);
+            if (index > 0) {
+                totalWidth += gap;
+            }
+        });
+        return totalWidth;
+    };
+
+    const leftHeader = leftPane.querySelector('.tab-bar');
+    const rightHeader = rightPane.querySelector('.builder-header');
+
+    // Add padding for a better look
+    const minLeftWidth = getChildrensTotalWidth(leftHeader) + 50; 
+    const minRightWidth = getChildrensTotalWidth(rightHeader) + 50;
+
+    const startX = e.clientX;
+    const startLeftWidth = leftPane.offsetWidth;
+    const startRightWidth = rightPane.offsetWidth;
+    const totalWidth = startLeftWidth + startRightWidth;
+
+    const doResize = (moveEvent) => {
+        // For RTL, dragging right (increasing clientX) should shrink the right-most pane (leftPane)
+        const dx = moveEvent.clientX - startX;
+        let newLeftWidth = startLeftWidth - dx;
+        
+        // Apply constraints to prevent panes from becoming too small and causing content wrap/jumps
+        if (newLeftWidth < minLeftWidth) {
+            newLeftWidth = minLeftWidth;
+        }
+        
+        if (totalWidth - newLeftWidth < minRightWidth) {
+            newLeftWidth = totalWidth - minRightWidth;
+        }
+        
+        const newLeftFraction = newLeftWidth / totalWidth;
+        const newRightFraction = 1 - newLeftFraction;
+        
+        mainArea.style.gridTemplateColumns = `${newLeftFraction}fr 5px ${newRightFraction}fr`;
+    };
+
+    const stopResize = () => {
+        window.removeEventListener('mousemove', doResize);
+        window.removeEventListener('mouseup', stopResize);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', doResize);
+    window.addEventListener('mouseup', stopResize);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+}
+
+
 function initResize(e) {
     if (e.button !== 0) return;
     e.preventDefault();
@@ -303,6 +375,7 @@ function showEasterEgg() {
     overlay.addEventListener('click', () => overlay.remove());
 }
 if (dom.resizer) dom.resizer.addEventListener('mousedown', initResize);
+if (dom.schemaEditorResizer) dom.schemaEditorResizer.addEventListener('mousedown', initSchemaEditorResize);
 dom.titleEl.addEventListener('click', (e) => { if (e.ctrlKey) showEasterEgg(); });
 
 

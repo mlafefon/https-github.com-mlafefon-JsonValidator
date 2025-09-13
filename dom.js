@@ -46,6 +46,7 @@ export const uploadSchemaBtn = document.getElementById('upload-schema-btn');
 export const schemaFileInput = document.getElementById('schema-file-input');
 export const schemaEditorFormContainer = document.getElementById('schema-editor-form-container');
 export const schemaEditorFooter = document.getElementById('schema-editor-footer');
+export const schemaEditorResizer = document.getElementById('schema-editor-resizer');
 export const schemaFieldSearchInput = document.getElementById('schema-field-search-input');
 export const schemaFieldSearchBtn = document.getElementById('schema-field-search-btn');
 export const additionalPropsToggle = document.getElementById('additional-props-toggle');

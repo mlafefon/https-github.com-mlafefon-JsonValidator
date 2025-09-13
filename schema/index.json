@@ -3,7 +3,8 @@
     "group": "Cyber",
     "schemas": [
       "appdata.json",
-      "stam.json"
+      "stam.json",
+      "package.json"
     ]
   },
   {
@@ -13,7 +14,7 @@
     ]
   },
   {
-    "group": "User Data",
+    "group": "Total",
     "schemas": [
       "papa.json"
     ]
