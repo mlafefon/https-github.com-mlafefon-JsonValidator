@@ -155,6 +155,7 @@ body {
 .editor-pane {
     overflow: visible; /* Allow dropdowns to overflow */
     z-index: 5;
+    position: relative;
 }
 
 .tree-pane {
@@ -571,6 +572,38 @@ body {
     color: var(--accent-green);
     cursor: default;
     background-color: transparent;
+}
+
+/* --- Drag and Drop Overlay --- */
+.drag-drop-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(30, 41, 59, 0.85);
+    backdrop-filter: blur(2px);
+    border: 3px dashed var(--accent-blue);
+    border-radius: var(--border-radius-md);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none; /* Important to allow drop event to pass through */
+    transition: opacity 0.2s ease-in-out;
+}
+.drag-drop-overlay[hidden] {
+    display: none;
+}
+.drag-drop-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-md);
+    color: var(--accent-blue);
+    font-size: 1.5rem;
+    font-weight: 500;
+    text-align: center;
 }
 
 /* --- Tree Pane --- */

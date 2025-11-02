@@ -7,6 +7,31 @@ import * as treeView from './treeView.js';
 import * as schemaEditor from './schemaEditor.js';
 import { initFeedbackResize } from './utils.js';
 
+// --- Reusable File Handler ---
+function handleFile(file) {
+    if (!file) return;
+
+    if (!file.type.match('application/json') && !file.name.endsWith('.json')) {
+         editor.updateStatusBar('ERROR', 'קובץ לא נתמך. בחר קובץ JSON.');
+         return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        dom.jsonInput.value = e.target.result;
+        dom.jsonInput.focus();
+        dom.jsonInput.setSelectionRange(0, 0);
+        dom.jsonInput.scrollTop = 0;
+        dom.jsonInput.scrollLeft = 0;
+        editor.updateLineNumbers();
+        editor.validateAndParseJson();
+        editor.handleScroll();
+    };
+    reader.onerror = () => editor.updateStatusBar('ERROR', `שגיאה בקריאת הקובץ: ${reader.error.message}`);
+    reader.readAsText(file);
+}
+
+
 // --- EVENT LISTENERS ---
 
 // Editor Listeners
@@ -35,23 +60,46 @@ dom.additionalPropsToggle.addEventListener('change', () => editor.validateAndPar
 // File Loading
 dom.loadFileBtn.addEventListener('click', () => dom.fileInput.click());
 dom.fileInput.addEventListener('change', (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        dom.jsonInput.value = e.target.result;
-        dom.jsonInput.focus();
-        dom.jsonInput.setSelectionRange(0, 0);
-        dom.jsonInput.scrollTop = 0;
-        dom.jsonInput.scrollLeft = 0;
-        editor.updateLineNumbers();
-        editor.validateAndParseJson();
-        editor.handleScroll();
-    };
-    reader.onerror = () => editor.updateStatusBar(ValidationStatus.ERROR, `שגיאה בקריאת הקובץ: ${reader.error.message}`);
-    reader.readAsText(file);
+    handleFile(event.target.files[0]);
     event.target.value = '';
 });
+
+// Drag and Drop Listeners
+let dragCounter = 0;
+
+dom.editorPane.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter++;
+    dom.dragDropOverlay.hidden = false;
+});
+
+dom.editorPane.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation(); // This is necessary to allow a drop.
+});
+
+dom.editorPane.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter--;
+    if (dragCounter === 0) {
+        dom.dragDropOverlay.hidden = true;
+    }
+});
+
+dom.editorPane.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter = 0;
+    dom.dragDropOverlay.hidden = true;
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+        handleFile(files[0]);
+    }
+});
+
 
 // Error Display Listener
 dom.errorDisplay.addEventListener('click', () => {

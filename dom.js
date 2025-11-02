@@ -51,6 +51,7 @@ export const schemaFieldSearchInput = document.getElementById('schema-field-sear
 export const schemaFieldSearchBtn = document.getElementById('schema-field-search-btn');
 export const additionalPropsToggle = document.getElementById('additional-props-toggle');
 export const deleteSchemaBtn = document.getElementById('delete-schema-btn');
+export const dragDropOverlay = document.getElementById('drag-drop-overlay');
 
 // --- CUSTOM SCHEMA DROPDOWNS ---
 export const schemaValidatorDropdown = document.getElementById('schema-validator-dropdown');
