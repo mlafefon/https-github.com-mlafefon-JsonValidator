@@ -1,7 +1,7 @@
 import * as dom from './dom.js';
 import { state } from './state.js';
 import * as constants from './constants.js';
-import { sanitizeInput } from './utils.js';
+import { sanitizeInput, initFeedbackResize } from './utils.js';
 import { validateAndParseJson, validateJsonAgainstSchema } from './editor.js';
 
 let currentExampleHighlight = { gutter: null, background: null, line: null };
@@ -215,6 +215,24 @@ function updateDropdownButtonState(button, selectedKey, placeholder) {
     } else {
         textSpan.textContent = placeholder;
         button.dataset.value = '';
+    }
+
+    if (button === dom.schemaValidatorSelectBtn) {
+        const hasSchema = !!selectedKey;
+        const toggleContainer = dom.additionalPropsToggle.closest('.form-group-toggle');
+        
+        dom.additionalPropsToggle.disabled = !hasSchema;
+        if (!hasSchema) {
+            dom.additionalPropsToggle.checked = false;
+        }
+
+        if (toggleContainer) {
+            toggleContainer.style.opacity = hasSchema ? '1' : '0.5';
+            toggleContainer.style.pointerEvents = hasSchema ? 'auto' : 'none';
+            toggleContainer.title = hasSchema 
+                ? "הצג שדות שאינם כלולים בסכימה" 
+                : "בחר סכמה כדי להפעיל אפשרות זו";
+        }
     }
 }
 
@@ -1463,53 +1481,172 @@ function handleExampleJsonUpload(event) {
     event.target.value = '';
 }
 
-function generateSampleJsonFromSchema(schema) {
-    if (!schema || typeof schema.type === 'undefined') {
-        if (schema === true) return "any_value";
-        return null;
+function generateSampleJsonFromSchema(schema, context = {}) {
+    // 1. Handle edge cases for schema definitions
+    if (!schema || (typeof schema !== 'object' && typeof schema !== 'boolean')) return null;
+    if (schema === true) return "any_value";
+    if (schema === false) return undefined;
+
+    // Helper to get a value from an enum, respecting uniqueness context
+    const getEnumValue = (typeCheck) => {
+        if (schema.enum && Array.isArray(schema.enum) && schema.enum.length > 0) {
+            let value;
+            if (context.uniqueIndex !== undefined) {
+                value = schema.enum[context.uniqueIndex % schema.enum.length];
+            } else {
+                value = schema.enum[0];
+            }
+            // Only return the enum value if it matches the expected type
+            if (typeCheck(value)) {
+                return value;
+            }
+        }
+        return undefined; // No valid enum value found
+    };
+    
+    // 2. Determine the type, defaulting if not specified
+    const type = Array.isArray(schema.type) ? schema.type[0] : schema.type;
+    
+    // If type is not specified, try to infer from enum or default to string.
+    if (!type) {
+        if (schema.enum && schema.enum.length > 0) {
+            const firstEnumValue = schema.enum[0];
+            if (typeof firstEnumValue === 'object' && firstEnumValue !== null) {
+                if (Array.isArray(firstEnumValue)) return generateSampleJsonFromSchema({ type: 'array', ...schema }, context);
+                return generateSampleJsonFromSchema({ type: 'object', ...schema }, context);
+            }
+            return firstEnumValue;
+        }
+        return "example_string";
     }
 
-    switch (schema.type) {
+    // 3. Generate sample based on type
+    switch (type) {
         case 'object': {
+            const enumValue = getEnumValue(v => typeof v === 'object' && v !== null && !Array.isArray(v));
+            if (enumValue !== undefined) return enumValue;
+
             const obj = {};
             if (schema.properties) {
                 const required = schema.required || [];
+                // Generate all required properties
                 for (const key of required) {
                     if (schema.properties[key]) {
-                        obj[key] = generateSampleJsonFromSchema(schema.properties[key]);
+                        obj[key] = generateSampleJsonFromSchema(schema.properties[key], {});
                     }
                 }
+                // Also add one optional property for demonstration
                 const nonRequiredKey = Object.keys(schema.properties).find(k => !required.includes(k));
                 if (nonRequiredKey) {
-                     obj[nonRequiredKey] = generateSampleJsonFromSchema(schema.properties[nonRequiredKey]);
+                     obj[nonRequiredKey] = generateSampleJsonFromSchema(schema.properties[nonRequiredKey], {});
                 }
+            }
+            
+            // Handle uniqueness for arrays of objects
+            if (context.uniqueIndex !== undefined) {
+                 if (Object.keys(obj).length > 0) {
+                    const firstKey = Object.keys(obj)[0];
+                    if (typeof obj[firstKey] === 'string') obj[firstKey] += `_${context.uniqueIndex}`;
+                    else if (typeof obj[firstKey] === 'number') obj[firstKey] += context.uniqueIndex;
+                 } else {
+                     obj[`unique_prop_${context.uniqueIndex}`] = context.uniqueIndex;
+                 }
             }
             return obj;
         }
         case 'array': {
+            const enumValue = getEnumValue(v => Array.isArray(v));
+            if (enumValue !== undefined) return enumValue;
+
             const arr = [];
+            let itemCount = schema.minItems !== undefined ? schema.minItems : 1;
+            itemCount = Math.min(itemCount, 3);
+            if (schema.maxItems === 0) return [];
+            
             if (schema.items) {
-                arr.push(generateSampleJsonFromSchema(schema.items));
+                for (let i = 0; i < itemCount; i++) {
+                    const item = generateSampleJsonFromSchema(schema.items, { uniqueIndex: i });
+                    if (item !== undefined) arr.push(item);
+                }
             }
             return arr;
         }
-        case 'string':
-            if (schema.enum && schema.enum.length > 0) return schema.enum[0];
-            return "example_string";
+        case 'string': {
+            const enumValue = getEnumValue(v => typeof v === 'string');
+            if (enumValue !== undefined) return enumValue;
+            
+            let example = "example";
+            if (context.uniqueIndex !== undefined) example += `_${context.uniqueIndex}`;
+
+            if (schema.minLength !== undefined) {
+                if (example.length < schema.minLength) example = example.padEnd(schema.minLength, "_");
+            }
+            if (schema.maxLength !== undefined) {
+                if (example.length > schema.maxLength) example = example.substring(0, schema.maxLength);
+            }
+            if (schema.minLength !== undefined && schema.maxLength !== undefined && schema.minLength > schema.maxLength) {
+                return "[invalid schema: minLength > maxLength]";
+            }
+            return example;
+        }
         case 'number':
-            if (schema.enum && schema.enum.length > 0) return schema.enum[0];
-            return schema.minimum !== undefined ? schema.minimum : 123.45;
-        case 'integer':
-            if (schema.enum && schema.enum.length > 0) return schema.enum[0];
-            return schema.minimum !== undefined ? schema.minimum : 123;
-        case 'boolean':
+        case 'integer': {
+            const enumValue = getEnumValue(v => typeof v === 'number');
+            if (enumValue !== undefined) return enumValue;
+            
+            const isInteger = type === 'integer';
+            if ((schema.minimum > schema.maximum) || (schema.exclusiveMinimum >= schema.exclusiveMaximum)) {
+                return isInteger ? 0 : 0.0;
+            }
+
+            let value;
+            if (schema.minimum !== undefined) value = schema.minimum;
+            else if (schema.exclusiveMinimum !== undefined) value = schema.exclusiveMinimum + (isInteger ? 1 : 0.01);
+            else value = isInteger ? 100 : 42.5;
+
+            if (schema.multipleOf > 0) {
+                if (value % schema.multipleOf !== 0) {
+                    value = Math.ceil(value / schema.multipleOf) * schema.multipleOf;
+                }
+            }
+
+            if (schema.maximum !== undefined && value > schema.maximum) {
+                value = schema.maximum;
+                if (schema.multipleOf > 0) value = Math.floor(value / schema.multipleOf) * schema.multipleOf;
+            }
+            if (schema.exclusiveMaximum !== undefined && value >= schema.exclusiveMaximum) {
+                value = schema.exclusiveMaximum - (isInteger ? 1 : 0.01);
+                if (schema.multipleOf > 0) value = Math.floor(value / schema.multipleOf) * schema.multipleOf;
+            }
+            
+            if (schema.minimum !== undefined && value < schema.minimum) return schema.minimum;
+
+            let finalValue = value;
+            if (context.uniqueIndex !== undefined) {
+                const increment = (schema.multipleOf || (isInteger ? 1 : 0.01));
+                const uniqueVal = finalValue + context.uniqueIndex * increment;
+                const max = schema.exclusiveMaximum ?? schema.maximum;
+                if (max === undefined || uniqueVal < max) {
+                    finalValue = uniqueVal;
+                }
+            }
+            
+            return isInteger ? Math.floor(finalValue) : finalValue;
+        }
+        case 'boolean': {
+            const enumValue = getEnumValue(v => typeof v === 'boolean');
+            if (enumValue !== undefined) return enumValue;
+
+            if (context.uniqueIndex !== undefined) return context.uniqueIndex % 2 === 0;
             return true;
+        }
         case 'null':
             return null;
         default:
-            return `unsupported_type_${schema.type}`;
+            return `unsupported_type_${type}`;
     }
 }
+
 
 function handleGenerateExampleJson() {
     const schemaText = dom.schemaContentTextarea.value.trim();
@@ -1599,6 +1736,10 @@ export function initializeSchemaEditorEventListeners() {
     dom.generateExampleJsonBtn.addEventListener('click', handleGenerateExampleJson);
     dom.beautifySchemaBtn.addEventListener('click', beautifyActiveTextarea);
     dom.exampleJsonFeedback.addEventListener('click', handleExampleFeedbackClick);
+
+    if (dom.exampleJsonFeedbackResizer) {
+        dom.exampleJsonFeedbackResizer.addEventListener('mousedown', initFeedbackResize);
+    }
 
     dom.exampleJsonTextarea.addEventListener('input', () => {
         updateLineNumbersForTextarea(dom.exampleJsonTextarea, dom.exampleJsonLineNumbers);

@@ -1,8 +1,11 @@
+
+
 import * as dom from './dom.js';
 import { state } from './state.js';
 import * as editor from './editor.js';
 import * as treeView from './treeView.js';
 import * as schemaEditor from './schemaEditor.js';
+import { initFeedbackResize } from './utils.js';
 
 // --- EVENT LISTENERS ---
 
@@ -215,10 +218,16 @@ dom.confirmDiscardBtn.addEventListener('click', () => {
     schemaEditor.closeSchemaEditor();
 });
 dom.confirmSaveCloseBtn.addEventListener('click', () => {
-    if (schemaEditor.saveSchema()) {
-        dom.confirmCloseModal.hidden = true;
+    const isSaveSuccessful = schemaEditor.saveSchema();
+    // Always hide the confirmation modal so the user can see the result.
+    dom.confirmCloseModal.hidden = true; 
+    
+    if (isSaveSuccessful) {
+        // If save was successful, also close the main schema editor.
         schemaEditor.closeSchemaEditor();
     }
+    // If save failed, the confirmation modal is now hidden, 
+    // and the main editor with the error message is visible.
 });
 
 // --- CONFIRM DELETE SCHEMA MODAL LISTENERS ---
@@ -231,41 +240,6 @@ dom.confirmDeleteSchemaConfirmBtn.addEventListener('click', () => {
 
 
 // --- APP-WIDE ---
-function initFeedbackResize(e) {
-    if (e.button !== 0) return;
-    e.preventDefault();
-
-    const startY = e.clientY;
-    const startHeight = dom.schemaFeedback.offsetHeight;
-    const editorPane = dom.schemaFeedback.closest('.editor-pane');
-
-    const computedStyle = getComputedStyle(dom.schemaFeedback);
-    const minHeight = parseInt(computedStyle.minHeight, 10) || 48;
-    const maxHeight = editorPane ? editorPane.offsetHeight - 150 : 500;
-
-    const doResize = (moveEvent) => {
-        const dy = moveEvent.clientY - startY;
-        let newHeight = startHeight - dy;
-
-        if (newHeight < minHeight) newHeight = minHeight;
-        if (newHeight > maxHeight) newHeight = maxHeight;
-        
-        dom.schemaFeedback.style.height = `${newHeight}px`;
-    };
-
-    const stopResize = () => {
-        window.removeEventListener('mousemove', doResize);
-        window.removeEventListener('mouseup', stopResize);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-    };
-
-    window.addEventListener('mousemove', doResize);
-    window.addEventListener('mouseup', stopResize);
-    document.body.style.cursor = 'row-resize';
-    document.body.style.userSelect = 'none';
-}
-
 function initSchemaEditorResize(e) {
     if (e.button !== 0) return;
     e.preventDefault();

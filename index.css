@@ -911,6 +911,11 @@ body {
 #example-json-feedback {
     margin: 0;
     flex-shrink: 0; /* prevent it from shrinking */
+    position: relative;
+    padding-top: var(--space-md);
+    min-height: 48px;
+    max-height: 50vh;
+    overflow-y: auto;
 }
 
 /* --- Visual Builder Field Row --- */

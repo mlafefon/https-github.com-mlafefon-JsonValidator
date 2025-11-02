@@ -71,6 +71,7 @@ export const exampleJsonTextarea = document.getElementById('example-json-textare
 export const exampleJsonFeedback = document.getElementById('example-json-feedback');
 export const exampleJsonFeedbackIcon = document.getElementById('example-json-feedback-icon');
 export const exampleJsonFeedbackMessage = document.getElementById('example-json-feedback-message');
+export const exampleJsonFeedbackResizer = document.getElementById('example-json-feedback-resizer');
 export const uploadExampleJsonBtn = document.getElementById('upload-example-json-btn');
 export const generateExampleJsonBtn = document.getElementById('generate-example-json-btn');
 export const beautifySchemaBtn = document.getElementById('beautify-schema-btn');
