@@ -1251,8 +1251,13 @@ function processUrlSchemaSelection() {
         );
         
         if (schemaKey) {
-            // Set the value on the button's dataset. The UI text will be updated by populateCustomDropdowns.
-            dom.schemaValidatorSelectBtn.dataset.value = schemaKey;
+            // Check if the schema is a default schema before selecting it via URL.
+            if (state.defaultSchemaKeys.has(schemaKey)) {
+                // Set the value on the button's dataset. The UI text will be updated by populateCustomDropdowns.
+                dom.schemaValidatorSelectBtn.dataset.value = schemaKey;
+            } else {
+                console.warn(`Schema with title "${schemaTitle}" is a user schema and cannot be selected via URL parameter.`);
+            }
         } else {
             console.warn(`Schema with title "${schemaTitle}" not found via URL parameter.`);
         }
