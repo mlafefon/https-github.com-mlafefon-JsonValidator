@@ -420,16 +420,26 @@ async function loadAppVersion() {
     }
 }
 
-loadAppVersion();
-editor.updateLineNumbers();
-editor.validateAndParseJson();
-schemaEditor.initializeSchemaValidator();
-schemaEditor.initializeSchemaEditorEventListeners();
-schemaEditor.initializeCustomDropdowns();
+async function initializeApp() {
+    await loadAppVersion();
+    editor.updateLineNumbers();
+    
+    // Load schemas and process URL parameters for schema selection first
+    await schemaEditor.initializeSchemaValidator();
+    
+    // Initialize other parts of the app
+    schemaEditor.initializeSchemaEditorEventListeners();
+    schemaEditor.initializeCustomDropdowns();
 
-const resizeObserver = new ResizeObserver(() => {
-    const scrollbarHeight = dom.jsonInput.offsetHeight - dom.jsonInput.clientHeight;
-    dom.lineNumbers.style.paddingBottom = `calc(1rem + ${scrollbarHeight}px)`;
-    editor.handleScroll();
-});
-resizeObserver.observe(dom.jsonInput);
+    // Now, perform the initial validation which will use the schema from the URL if provided
+    editor.validateAndParseJson();
+
+    const resizeObserver = new ResizeObserver(() => {
+        const scrollbarHeight = dom.jsonInput.offsetHeight - dom.jsonInput.clientHeight;
+        dom.lineNumbers.style.paddingBottom = `calc(1rem + ${scrollbarHeight}px)`;
+        editor.handleScroll();
+    });
+    resizeObserver.observe(dom.jsonInput);
+}
+
+initializeApp();

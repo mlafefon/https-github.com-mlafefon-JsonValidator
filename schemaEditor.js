@@ -1237,6 +1237,28 @@ export function handleCreateNewSchema() {
     dom.schemaTitleInput.focus();
 }
 
+/**
+ * Reads the 'schema' URL parameter and sets the initial selection for the validator.
+ */
+function processUrlSchemaSelection() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const schemaTitle = urlParams.get('schema');
+
+    if (schemaTitle && state.schemaData) {
+        // Find the key for the schema with the matching title. Case-insensitive for robustness.
+        const schemaKey = Object.keys(state.schemaData).find(key => 
+            state.schemaData[key]?.title?.toLowerCase() === schemaTitle.toLowerCase()
+        );
+        
+        if (schemaKey) {
+            // Set the value on the button's dataset. The UI text will be updated by populateCustomDropdowns.
+            dom.schemaValidatorSelectBtn.dataset.value = schemaKey;
+        } else {
+            console.warn(`Schema with title "${schemaTitle}" not found via URL parameter.`);
+        }
+    }
+}
+
 export async function initializeSchemaValidator() {
     try {
         const storedSchemas = localStorage.getItem(constants.LS_SCHEMA_KEY);
@@ -1292,6 +1314,9 @@ export async function initializeSchemaValidator() {
         console.error("Could not load or parse schema data:", e);
         state.schemaData = {}; // Fallback to empty
     }
+    
+    // Process URL param BEFORE populating dropdowns to set the initial state.
+    processUrlSchemaSelection();
 
     populateCustomDropdowns();
 }
